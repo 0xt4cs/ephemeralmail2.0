@@ -6,7 +6,7 @@
     "dev": "next dev -p 8989",
     "build": "next build",
     "start": "next start -p 8989",
-    "smtp": "ts-node --compiler-options {\"module\":\"CommonJS\"} src/server/smtp-receiver.ts",
+    "smtp": "node -e \"require('ts-node').register({ transpileOnly: true, compilerOptions: { module: 'CommonJS' } }); require('./src/server/smtp-receiver.ts');\"",
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
