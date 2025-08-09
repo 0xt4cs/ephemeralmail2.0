@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  fingerprint String   @unique
+  emailCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  emails      Email[]
+
+  @@index([createdAt])
+}
+
+model Email {
+  id            String         @id @default(cuid())
+  emailAddress  String         @unique
+  sessionId     String
+  session       Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  expiresAt     DateTime
+  isActive      Boolean        @default(true)
+  receivedEmails ReceivedEmail[]
+
+  @@index([sessionId])
+  @@index([sessionId, createdAt])
+  @@index([expiresAt])
+  @@index([isActive])
+}
+
+model ReceivedEmail {
+  id          String   @id @default(cuid())
+  emailId     String
+  email       Email    @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  fromAddress String
+  subject     String
+  bodyHtml    String?
+  bodyText    String?
+  headers     String   // JSON string of email headers
+  receivedAt  DateTime @default(now())
+  attachments String?  // JSON string of attachment info
+  messageId   String   @unique // Email message ID for deduplication
+
+  @@index([emailId])
+  @@index([emailId, receivedAt])
+}
