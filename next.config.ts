@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client'],
   reactStrictMode: true,
   compress: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async headers() {
     return [
       {

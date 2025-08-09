@@ -9,13 +9,13 @@ interface EmailContent {
   fromAddress: string
   subject: string
   receivedAt: Date
-  bodyHtml: string
-  bodyText: string
-  headers: Record<string, string>
+  bodyHtml?: string | null
+  bodyText?: string | null
+  headers?: Record<string, string>
   attachments?: Array<{
     name: string
     size: number
-    type: string
+    type?: string
   }>
 }
 
@@ -90,13 +90,15 @@ export function EmailContent({ selected }: EmailContentProps) {
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto">
           {/* HTML Content */}
-          <div 
-            className="prose prose-sm max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }}
-          />
+          {selectedEmail.bodyHtml ? (
+            <div
+              className="prose prose-sm max-w-none dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml || '' }}
+            />
+          ) : null}
           
           {/* Text Content (fallback) */}
-          {!selectedEmail.bodyHtml && (
+          {!selectedEmail.bodyHtml && selectedEmail.bodyText && (
             <div className="whitespace-pre-wrap text-sm">
               {selectedEmail.bodyText}
             </div>
