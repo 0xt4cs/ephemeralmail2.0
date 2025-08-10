@@ -70,6 +70,19 @@ export async function GET(request: NextRequest) {
       return errorJson(404, 'Attachment not found')
     }
 
+    if (!attachment.content) {
+      console.log('Attachment content missing for:', {
+        emailId,
+        attachmentName,
+        attachment: {
+          name: attachment.name,
+          size: attachment.size,
+          type: attachment.type
+        }
+      })
+      return errorJson(404, 'Attachment content not available for preview. Please download the file instead.')
+    }
+
     if (!canPreviewFile(attachment.name, attachment.type || '', attachment.size)) {
       return errorJson(400, 'File type not supported for preview')
     }

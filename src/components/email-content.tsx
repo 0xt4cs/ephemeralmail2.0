@@ -74,25 +74,7 @@ export function EmailContent({ selected }: EmailContentProps) {
 
         </div>
 
-        {/* Attachments */}
-        {selected.attachments && selected.attachments.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <div className="flex items-center space-x-2 mb-2">
-              <Paperclip className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Attachments ({selected.attachments.length})</span>
-            </div>
-            <div className="space-y-2">
-              {selected.attachments.map((attachment, index) => (
-                <FilePreview
-                  key={index}
-                  emailId={selected.id}
-                  attachment={attachment}
-                  fingerprint={getFingerprint()}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
 
 
@@ -125,6 +107,29 @@ export function EmailContent({ selected }: EmailContentProps) {
             <div className="text-center">
               <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No content available</p>
+            </div>
+          </div>
+        )}
+
+        {/* Attachments - Moved to bottom */}
+        {selected.attachments && selected.attachments.length > 0 && (
+          <div className="border-t border-border p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">
+                Attachments ({selected.attachments.length})
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {selected.attachments.map((attachment, index) => (
+                <FilePreview
+                  key={index}
+                  emailId={selected.id}
+                  attachment={attachment}
+                  fingerprint={getFingerprint()}
+                  className="p-2"
+                />
+              ))}
             </div>
           </div>
         )}

@@ -51,16 +51,13 @@ export async function POST(request: NextRequest) {
     }
     
     const attachments = email.attachments ? JSON.parse(email.attachments) : []
-    console.log('Found attachments:', attachments.map((att: Record<string, unknown>) => ({ name: att.name, hasContent: !!att.content })))
     const attachment = attachments.find((att: Record<string, unknown>) => att.name === attachmentName)
     
     if (!attachment) {
-      console.error('Attachment not found:', { emailId, attachmentName, availableAttachments: attachments.map((att: Record<string, unknown>) => att.name) })
       return errorJson(404, 'Attachment not found')
     }
     
     if (!attachment.content) {
-      console.error('Attachment content missing for:', { emailId, attachmentName, attachment })
       return errorJson(404, 'Attachment content not found')
     }
     

@@ -143,7 +143,7 @@ export default function Home() {
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-lg font-semibold flex items-center">
                       <Mail className="h-5 w-5 mr-2" />
-                      {sidePanelView === 'emails' ? 'Generated Emails' : 'Received'}
+                      {sidePanelView === 'emails' ? 'Generated Emails' : 'Received Emails'}
                     </h2>
                     <Button
                       variant="ghost"

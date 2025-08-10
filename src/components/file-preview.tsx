@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Image, 
   FileVideo, 
@@ -50,12 +50,28 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
   
   const IconComponent = iconMap[fileTypeInfo.icon as keyof typeof iconMap] || FileQuestion
 
-  const handlePreview = () => {
+  const handlePreview = async () => {
     if (!previewInfo.canPreview) return
     
-    const url = generatePreviewUrl(emailId, attachment.name, fingerprint, previewInfo.previewType)
-    setPreviewUrl(url)
-    setShowPreview(true)
+    try {
+      const url = generatePreviewUrl(emailId, attachment.name, fingerprint, previewInfo.previewType)
+      
+      // Test the URL first to see if content is available
+      const response = await fetch(url, { method: 'HEAD' })
+      if (!response.ok) {
+        if (response.status === 404) {
+          alert('This file cannot be previewed. Please download it instead.')
+          return
+        }
+        throw new Error(`Preview failed: ${response.status}`)
+      }
+      
+      setPreviewUrl(url)
+      setShowPreview(true)
+    } catch (error) {
+      console.error('Preview error:', error)
+      alert('Unable to preview this file. Please download it instead.')
+    }
   }
 
   const handleDownload = async () => {
@@ -99,27 +115,27 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
   }
 
   return (
-    <div className={cn("flex items-center justify-between p-3 border rounded-lg bg-card", className)}>
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <IconComponent className={cn("h-5 w-5 flex-shrink-0", fileTypeInfo.color)} />
+    <div className={cn("flex items-center justify-between p-2 border rounded-md bg-card hover:bg-accent transition-colors", className)}>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <IconComponent className={cn("h-4 w-4 flex-shrink-0", fileTypeInfo.color)} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{attachment.name}</p>
+          <p className="text-xs font-medium truncate">{attachment.name}</p>
           <p className="text-xs text-muted-foreground">
-            {fileTypeInfo.label} • {formatFileSize(attachment.size)}
+            {formatFileSize(attachment.size)}
           </p>
         </div>
       </div>
       
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0">
         {previewInfo.canPreview && (
           <Button
             variant="ghost"
             size="sm"
             onClick={handlePreview}
-            className="h-8 w-8 p-0"
+            className="h-6 w-6 p-0"
             title="Preview"
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-3 w-3" />
           </Button>
         )}
         
@@ -127,10 +143,10 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
           variant="ghost"
           size="sm"
           onClick={handleDownload}
-          className="h-8 w-8 p-0"
+          className="h-6 w-6 p-0"
           title="Download"
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-3 w-3" />
         </Button>
       </div>
 
@@ -150,17 +166,23 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
               </Button>
             </div>
             
-            <div className="p-4 max-h-[calc(90vh-120px)] overflow-auto">
-               {previewInfo.previewType === 'image' && (
-                 <NextImage
-                   src={previewUrl}
-                   alt={attachment.name}
-                   width={800}
-                   height={600}
-                   className="max-w-full h-auto rounded"
-                   style={{ objectFit: 'contain' }}
-                 />
-               )}
+                         <div className="p-4 max-h-[calc(90vh-120px)] overflow-auto">
+                {previewInfo.previewType === 'image' && (
+                  <div className="flex items-center justify-center">
+                    <NextImage
+                      src={previewUrl}
+                      alt={attachment.name}
+                      width={800}
+                      height={600}
+                      className="max-w-full h-auto rounded"
+                      style={{ objectFit: 'contain' }}
+                      onError={() => {
+                        alert('Failed to load image. Please download the file instead.')
+                        setShowPreview(false)
+                      }}
+                    />
+                  </div>
+                )}
               
               {previewInfo.previewType === 'pdf' && (
                 <iframe
@@ -170,17 +192,17 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
                 />
               )}
               
-              {previewInfo.previewType === 'text' && (
-                <pre className="bg-muted p-4 rounded text-sm overflow-auto max-h-[70vh]">
-                  <code>{previewUrl}</code>
-                </pre>
-              )}
-              
-              {previewInfo.previewType === 'code' && (
-                <pre className="bg-muted p-4 rounded text-sm overflow-auto max-h-[70vh]">
-                  <code>{previewUrl}</code>
-                </pre>
-              )}
+                             {previewInfo.previewType === 'text' && (
+                 <div className="bg-muted p-4 rounded text-sm overflow-auto max-h-[70vh]">
+                   <TextPreviewComponent url={previewUrl} filename={attachment.name} />
+                 </div>
+               )}
+               
+               {previewInfo.previewType === 'code' && (
+                 <div className="bg-muted p-4 rounded text-sm overflow-auto max-h-[70vh]">
+                   <TextPreviewComponent url={previewUrl} filename={attachment.name} />
+                 </div>
+               )}
               
                              {previewInfo.previewType === 'video' && (
                  <video
@@ -263,4 +285,50 @@ function getFileTypeInfo(filename: string, mimeType?: string): {
   
   // Default
   return { icon: 'FileQuestion', color: 'text-gray-400', label: 'File' }
+}
+
+// Text Preview Component
+function TextPreviewComponent({ url }: { url: string; filename: string }) {
+  const [content, setContent] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(url)
+        if (!response.ok) {
+          throw new Error(`Failed to load content: ${response.status}`)
+        }
+        const text = await response.text()
+        setContent(text)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load content')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchContent()
+  }, [url])
+
+  if (loading) {
+    return <div className="text-center py-8">Loading content...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-red-500">
+        <p>Error: {error}</p>
+        <p className="text-sm mt-2">Please download the file instead.</p>
+      </div>
+    )
+  }
+
+  return (
+    <pre className="whitespace-pre-wrap font-mono text-xs">
+      <code>{content}</code>
+    </pre>
+  )
 }
