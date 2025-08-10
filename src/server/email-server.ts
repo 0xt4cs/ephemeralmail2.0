@@ -3,6 +3,10 @@ import { SMTPServer } from 'smtp-server'
 import { simpleParser, ParsedMail } from 'mailparser'
 import { createTransport, Transporter, SendMailOptions } from 'nodemailer'
 import { EventEmitter } from 'events'
+import * as dotenv from 'dotenv'
+
+// Load environment variables from .env file
+dotenv.config()
 
 // Email Server Configuration
 interface EmailServerConfig {
