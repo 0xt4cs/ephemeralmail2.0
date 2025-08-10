@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
 
     const existingEmail = await prisma.email.findUnique({ where: { emailAddress } })
     if (existingEmail) {
-      // If the existing email belongs to this session, return it to avoid exposing others
       if (existingEmail.sessionId === session.id) {
         return okJson({ 
           id: existingEmail.id, 

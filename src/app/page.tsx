@@ -6,7 +6,7 @@ import { ReceivedEmails } from '@/components/received-emails'
 import { EmailContent } from '@/components/email-content'
 import { Header } from '@/components/header'
 import { getOrCreateClientFingerprint } from '@/lib/utils'
-import { Menu, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface ReceivedEmail {
@@ -28,7 +28,8 @@ export default function Home() {
   const [fingerprint, setFingerprint] = useState<string>('')
   const [selectedEmailAddress, setSelectedEmailAddress] = useState<string>('')
   const [selectedMessage, setSelectedMessage] = useState<ReceivedEmail | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const [mobileView, setMobileView] = useState<'emails' | 'messages' | 'content'>('emails')
 
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
@@ -36,10 +37,9 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
-    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       setFingerprint(prev => prev)
-    }, 30000)
+    }, 15000)
 
     return () => {
       if (interval) clearInterval(interval)
@@ -47,26 +47,38 @@ export default function Home() {
   }, [])
 
   const handleRefresh = () => {
-    // Force a refresh by updating the fingerprint
     const newFingerprint = getOrCreateClientFingerprint()
     setFingerprint(newFingerprint)
+    setSelectedEmailAddress('')
+    setSelectedMessage(null)
   }
 
   const handleSelectEmail = (address: string) => {
     setSelectedEmailAddress(address)
-    // Close sidebar on mobile after selection
     if (window.innerWidth < 1024) {
-      setSidebarOpen(false)
+      setMobileView('messages')
     }
   }
 
   const handleSelectMessage = (message: ReceivedEmail) => {
     setSelectedMessage(message)
+    if (window.innerWidth < 1024) {
+      setMobileView('content')
+    }
   }
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen)
+  const handleBackToEmails = () => {
+    setSelectedEmailAddress('')
+    setSelectedMessage(null)
+    setMobileView('emails')
   }
+
+  const handleBackToMessages = () => {
+    setSelectedMessage(null)
+    setMobileView('messages')
+  }
+
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,74 +86,68 @@ export default function Home() {
       
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        {/* Mobile Sidebar Toggle */}
+        {/* Mobile Navigation */}
         <div className="p-4 border-b border-border">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSidebar}
-            className="flex items-center space-x-2"
-          >
-            {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            <span>{sidebarOpen ? 'Close' : 'Menu'}</span>
-          </Button>
-        </div>
-
-        {/* Mobile Sidebar */}
-        <div className={`
-          sidebar-container
-          ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}
-        `}>
-          <div className="flex flex-col h-full">
-            {/* Email List */}
-            <div className="flex-1 border-b border-border">
-              <EmailList
-                fingerprint={fingerprint}
-                selectedEmailAddress={selectedEmailAddress}
-                onSelectEmail={handleSelectEmail}
-              />
-            </div>
-
-            {/* Received Emails */}
-            {selectedEmailAddress && (
-              <div className="flex-1">
-                <ReceivedEmails
-                  fingerprint={fingerprint}
-                  selectedEmailAddress={selectedEmailAddress}
-                  onSelectMessage={handleSelectMessage}
-                />
-              </div>
+          <div className="flex items-center gap-2">
+            {mobileView === 'messages' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToEmails}
+                className="flex items-center space-x-2"
+              >
+                <X className="h-4 w-4" />
+                <span>Back to Emails</span>
+              </Button>
             )}
+            {mobileView === 'content' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToMessages}
+                className="flex items-center space-x-2"
+              >
+                <X className="h-4 w-4" />
+                <span>Back to Messages</span>
+              </Button>
+            )}
+            <div className="flex-1 text-center">
+              <span className="text-sm font-medium">
+                {mobileView === 'emails' && 'Email Addresses'}
+                {mobileView === 'messages' && selectedEmailAddress}
+                {mobileView === 'content' && selectedMessage?.subject}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Main Content */}
+        {/* Mobile Content */}
         <div className="h-[calc(100vh-8rem)]">
-          {selectedMessage ? (
+          {mobileView === 'emails' && (
+            <EmailList
+              fingerprint={fingerprint}
+              selectedEmailAddress={selectedEmailAddress}
+              onSelectEmail={handleSelectEmail}
+            />
+          )}
+          {mobileView === 'messages' && selectedEmailAddress && (
+            <ReceivedEmails
+              fingerprint={fingerprint}
+              selectedEmailAddress={selectedEmailAddress}
+              onSelectMessage={handleSelectMessage}
+            />
+          )}
+          {mobileView === 'content' && selectedMessage && (
             <EmailContent selected={selectedMessage} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <p>Select a message to view content</p>
-              </div>
-            </div>
           )}
         </div>
-
-        {/* Mobile Overlay */}
-        {sidebarOpen && (
-          <div 
-            className="sidebar-overlay"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
       </div>
 
       {/* Desktop Layout */}
       <div className="hidden lg:block">
         <div className="flex h-[calc(100vh-4rem)]">
-          {/* Left: Email List */}
-          <div className="w-1/4 border-r border-border">
+          {/* Left: Email List (smaller) */}
+          <div className="w-1/5 border-r border-border">
             <EmailList
               fingerprint={fingerprint}
               selectedEmailAddress={selectedEmailAddress}
@@ -149,8 +155,8 @@ export default function Home() {
             />
           </div>
 
-          {/* Middle: Received Emails */}
-          <div className="w-1/3 border-r border-border">
+          {/* Middle: Received Emails (medium) */}
+          <div className="w-2/5 border-r border-border">
             {selectedEmailAddress ? (
               <ReceivedEmails
                 fingerprint={fingerprint}
@@ -166,8 +172,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right: Email Content */}
-          <div className="w-5/12">
+          {/* Right: Email Content (larger) */}
+          <div className="w-2/5">
             {selectedMessage ? (
               <EmailContent selected={selectedMessage} />
             ) : (

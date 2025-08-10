@@ -78,7 +78,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       
       const data = await response.json()
       if (data.success) {
-        await fetchEmails() // Refresh the list
+        await fetchEmails()
         if (data.data.address) {
           onSelectEmail(data.data.address)
         }
@@ -127,7 +127,6 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     }
   }
 
-  // Fetch emails on mount and when fingerprint changes
   useEffect(() => {
     if (fingerprint) {
       fetchEmails()

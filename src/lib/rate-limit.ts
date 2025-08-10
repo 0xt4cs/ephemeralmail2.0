@@ -21,7 +21,6 @@ export function getClientIp(req: Request) {
   if (xfwd) return xfwd.split(',')[0].trim()
   const real = req.headers.get('x-real-ip')
   if (real) return real
-  // Node fetch request has no remote address; leave empty
   return ''
 }
 
@@ -34,7 +33,6 @@ export function checkRateLimit(opts: { req: Request; route: string; fingerprint?
     b = { tokens: MAX, lastRefill: nowMs }
     buckets.set(k, b)
   }
-  // Refill
   const elapsed = nowMs - b.lastRefill
   if (elapsed >= WINDOW_MS) {
     b.tokens = MAX

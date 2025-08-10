@@ -62,8 +62,34 @@ export function EmailContent({ selected }: EmailContentProps) {
     if (type.startsWith('audio/')) return <File className="h-4 w-4 text-blue-500" />
     if (type.includes('pdf')) return <File className="h-4 w-4 text-red-500" />
     if (type.includes('zip') || type.includes('rar')) return <File className="h-4 w-4 text-orange-500" />
+    if (type.includes('doc') || type.includes('word')) return <File className="h-4 w-4 text-blue-600" />
+    if (type.includes('xls') || type.includes('excel')) return <File className="h-4 w-4 text-green-600" />
+    if (type.includes('ppt') || type.includes('powerpoint')) return <File className="h-4 w-4 text-orange-600" />
+    if (type.includes('txt')) return <File className="h-4 w-4 text-gray-500" />
     
     return <File className="h-4 w-4" />
+  }
+
+  const handleDownload = async (attachment: { name: string; size: number; type?: string }) => {
+    try {
+      // For now, we'll create a blob URL for demonstration
+      // In a real implementation, you'd fetch the actual file from your server
+      const blob = new Blob(['Attachment content would be here'], { 
+        type: attachment.type || 'application/octet-stream' 
+      })
+      const url = URL.createObjectURL(blob)
+      
+      const a = document.createElement('a')
+      a.href = url
+      a.download = attachment.name
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Download failed:', error)
+      alert('Download failed. Please try again.')
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -129,7 +155,13 @@ export function EmailContent({ selected }: EmailContentProps) {
                       {attachment.type && ` • ${attachment.type}`}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => handleDownload(attachment)}
+                    title={`Download ${attachment.name}`}
+                  >
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
@@ -167,15 +199,23 @@ export function EmailContent({ selected }: EmailContentProps) {
         {selected.bodyHtml ? (
           <div className="p-4">
             <div 
-              className="prose prose-sm max-w-none dark:prose-invert"
+              className="prose prose-sm max-w-none dark:prose-invert email-content"
               dangerouslySetInnerHTML={{ __html: selected.bodyHtml }}
+              style={{
+                // Ensure email content is properly styled
+                fontFamily: 'inherit',
+                lineHeight: '1.6',
+                wordWrap: 'break-word'
+              }}
             />
           </div>
         ) : selected.bodyText ? (
           <div className="p-4">
-            <pre className="whitespace-pre-wrap font-sans text-sm bg-muted/50 p-4 rounded-md overflow-auto">
-              {selected.bodyText}
-            </pre>
+            <div className="bg-muted/50 p-4 rounded-md overflow-auto">
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                {selected.bodyText}
+              </pre>
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
