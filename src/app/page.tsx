@@ -91,23 +91,14 @@ export default function Home() {
     }
   }, [mobileMenuOpen])
 
-  // Get adaptive title based on current state
-  const getCurrentTitle = () => {
-    if (selectedMessage?.subject) {
-      return selectedMessage.subject
-    }
-    if (selectedEmailAddress) {
-      return selectedEmailAddress
-    }
-    return 'EphemeralMail'
-  }
+
 
   return (
     <div className="min-h-screen bg-background">
       <Header 
         onRefresh={handleRefresh} 
         onMenuToggle={toggleMobileMenu} 
-        currentTitle={getCurrentTitle()}
+        currentTitle="EphemeralMail"
       />
       
       {/* Mobile Layout */}

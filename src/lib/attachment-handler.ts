@@ -1,3 +1,5 @@
+import { FileText, Image, File, FileType, FileArchive, FileAudio, FileVideo, FileCode, FileSpreadsheet, FileQuestion, BookOpen, FileDigit, FileCheck } from 'lucide-react'
+
 /**
  * Attachment Handler for EphemeralMail
  * 
@@ -102,21 +104,32 @@ export async function handleAttachmentDownload(
 /**
  * Get file icon based on MIME type
  */
-export function getFileIcon(type?: string): { icon: string; color: string } {
-  if (!type) return { icon: '📄', color: 'text-gray-500' }
-  
-  if (type.startsWith('image/')) return { icon: '🖼️', color: 'text-green-500' }
-  if (type.startsWith('video/')) return { icon: '🎥', color: 'text-purple-500' }
-  if (type.startsWith('audio/')) return { icon: '🎵', color: 'text-blue-500' }
-  if (type.includes('pdf')) return { icon: '📕', color: 'text-red-500' }
-  if (type.includes('zip') || type.includes('rar') || type.includes('7z')) return { icon: '📦', color: 'text-orange-500' }
-  if (type.includes('doc') || type.includes('word')) return { icon: '📘', color: 'text-blue-600' }
-  if (type.includes('xls') || type.includes('excel')) return { icon: '📗', color: 'text-green-600' }
-  if (type.includes('ppt') || type.includes('powerpoint')) return { icon: '📙', color: 'text-orange-600' }
-  if (type.includes('txt')) return { icon: '📄', color: 'text-gray-500' }
-  if (type.includes('json') || type.includes('xml')) return { icon: '📋', color: 'text-yellow-500' }
-  
-  return { icon: '📄', color: 'text-gray-500' }
+export function getFileIcon(filename: string, contentType: string): { icon: any; color: string } {
+  const extension = filename.split('.').pop()?.toLowerCase()
+
+  if (contentType.startsWith('image/')) return { icon: Image, color: 'text-blue-500' }
+  if (contentType.startsWith('video/')) return { icon: FileVideo, color: 'text-purple-500' }
+  if (contentType.startsWith('audio/')) return { icon: FileAudio, color: 'text-yellow-500' }
+  if (contentType === 'application/pdf') return { icon: BookOpen, color: 'text-red-500' }
+  if (contentType === 'application/zip' || contentType === 'application/x-rar-compressed' || contentType === 'application/x-7z-compressed') return { icon: FileArchive, color: 'text-orange-500' }
+  if (contentType === 'application/msword' || contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return { icon: FileText, color: 'text-blue-600' }
+  if (contentType === 'application/vnd.ms-excel' || contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return { icon: FileSpreadsheet, color: 'text-green-600' }
+  if (contentType === 'application/vnd.ms-powerpoint' || contentType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return { icon: FileCheck, color: 'text-red-600' }
+  if (contentType.startsWith('text/')) return { icon: FileText, color: 'text-gray-500' }
+
+  switch (extension) {
+    case 'zip': case 'rar': case '7z': return { icon: FileArchive, color: 'text-orange-500' }
+    case 'pdf': return { icon: BookOpen, color: 'text-red-500' }
+    case 'doc': case 'docx': return { icon: FileText, color: 'text-blue-600' }
+    case 'xls': case 'xlsx': return { icon: FileSpreadsheet, color: 'text-green-600' }
+    case 'ppt': case 'pptx': return { icon: FileCheck, color: 'text-red-600' }
+    case 'js': case 'ts': case 'json': case 'xml': case 'html': case 'css': return { icon: FileCode, color: 'text-purple-500' }
+    case 'txt': return { icon: FileText, color: 'text-gray-500' }
+    case 'mp3': case 'wav': return { icon: FileAudio, color: 'text-yellow-500' }
+    case 'mp4': case 'avi': case 'mov': return { icon: FileVideo, color: 'text-purple-500' }
+    case 'jpg': case 'jpeg': case 'png': case 'gif': case 'bmp': case 'webp': return { icon: Image, color: 'text-blue-500' }
+    default: return { icon: FileQuestion, color: 'text-gray-400' }
+  }
 }
 
 /**

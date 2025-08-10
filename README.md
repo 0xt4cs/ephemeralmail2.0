@@ -13,9 +13,6 @@ Developed by [@0xt4cs](https://github.com/0xt4cs)
 - Node.js (v18 or higher)
 - npm (v9 or higher)
 - Git
-- PM2 (for production)
-- Nginx (for production)
-- Certbot (for SSL)
 
 ### Installation
 
@@ -35,8 +32,8 @@ Developed by [@0xt4cs](https://github.com/0xt4cs)
     ```
     # .env
     DATABASE_URL="file:./dev.db"
-    WEBHOOK_SECRET="b52488c391277c593a4fd3c19b7732f05aba1c5f9931421d127fe348762ab336"
-    EMAIL_SERVER_PORT=2525
+    WEBHOOK_SECRET="your-secret-here"
+    EMAIL_SERVER_PORT=25
     NEXT_PUBLIC_APP_URL="http://localhost:3000"
     ```
 
@@ -57,18 +54,9 @@ Developed by [@0xt4cs](https://github.com/0xt4cs)
     npm run start-email-server # In a separate terminal
     ```
 
-## ⚙️ Deployment (Production)
-
-Use `scripts/auto-deploy.sh` for a one-click setup on Ubuntu.
-
-```bash
-chmod +x scripts/auto-deploy.sh
-sudo ./scripts/auto-deploy.sh
-```
-
 ## 🌐 API Usage
 
-Base URL: `YOUR_APP_URL/api/v1` (e.g., `https://ephmail.whitebooking.com/api/v1`)
+Base URL: `YOUR_APP_URL/api/v1`
 
 All API responses are JSON: `{ success: boolean, data: { ... }, message?: string, meta?: { ... } }`
 
@@ -83,7 +71,7 @@ All API responses are JSON: `{ success: boolean, data: { ... }, message?: string
     {
       "success": true,
       "data": {
-        "address": "mycustomaddress@ephmail.whitebooking.com",
+        "address": "mycustomaddress@yourdomain.com",
         "expiresAt": "2025-08-24T12:00:00.000Z"
       }
     }
@@ -127,7 +115,7 @@ All public API responses include `"credits": "EphemeralMail by @0xt4cs - https:/
     {
       "success": true,
       "data": {
-        "address": "publicuser@ephmail.whitebooking.com",
+        "address": "publicuser@yourdomain.com",
         "generatedBy": "public-api"
       }
     }

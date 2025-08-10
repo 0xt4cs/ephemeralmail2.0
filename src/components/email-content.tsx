@@ -89,9 +89,10 @@ export function EmailContent({ selected }: EmailContentProps) {
                   key={index}
                   className="flex items-center space-x-2 p-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
                 >
-                  <span className={`text-lg ${getFileIcon(attachment.type).color}`}>
-                    {getFileIcon(attachment.type).icon}
-                  </span>
+                  {(() => {
+                    const { icon: Icon, color } = getFileIcon(attachment.name, attachment.type || 'application/octet-stream')
+                    return <Icon className={`h-5 w-5 ${color}`} />
+                  })()}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{attachment.name}</p>
                     <p className="text-xs text-muted-foreground">
