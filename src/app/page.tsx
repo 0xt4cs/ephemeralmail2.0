@@ -98,7 +98,6 @@ export default function Home() {
       <Header 
         onRefresh={handleRefresh} 
         onMenuToggle={toggleMobileMenu} 
-        currentTitle="EphemeralMail"
       />
       
       {/* Mobile Layout */}
@@ -131,16 +130,7 @@ export default function Home() {
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  
-                  {/* Breadcrumb Navigation */}
-                  <div className="flex items-center space-x-2 text-sm">
-                    {sidePanelView === 'messages' && (
-                      <>
-                        <span className="text-muted-foreground">/</span>
-                        <span className="text-primary font-medium">Received</span>
-                      </>
-                    )}
-                  </div>
+                
                 </div>
 
                 {/* Menu Content - Full Screen Views */}

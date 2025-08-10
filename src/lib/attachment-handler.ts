@@ -1,4 +1,4 @@
-import { FileText, Image, File, FileType, FileArchive, FileAudio, FileVideo, FileCode, FileSpreadsheet, FileQuestion, BookOpen, FileDigit, FileCheck } from 'lucide-react'
+import { FileText, Image, FileArchive, FileAudio, FileVideo, FileCode, FileSpreadsheet, FileQuestion, FileCheck } from 'lucide-react'
 
 /**
  * Attachment Handler for EphemeralMail
@@ -104,13 +104,13 @@ export async function handleAttachmentDownload(
 /**
  * Get file icon based on MIME type
  */
-export function getFileIcon(filename: string, contentType: string): { icon: any; color: string } {
+export function getFileIcon(filename: string, contentType: string): { icon: React.ComponentType<{ className?: string }>; color: string } {
   const extension = filename.split('.').pop()?.toLowerCase()
 
   if (contentType.startsWith('image/')) return { icon: Image, color: 'text-blue-500' }
   if (contentType.startsWith('video/')) return { icon: FileVideo, color: 'text-purple-500' }
   if (contentType.startsWith('audio/')) return { icon: FileAudio, color: 'text-yellow-500' }
-  if (contentType === 'application/pdf') return { icon: BookOpen, color: 'text-red-500' }
+  if (contentType === 'application/pdf') return { icon: FileText, color: 'text-red-500' }
   if (contentType === 'application/zip' || contentType === 'application/x-rar-compressed' || contentType === 'application/x-7z-compressed') return { icon: FileArchive, color: 'text-orange-500' }
   if (contentType === 'application/msword' || contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return { icon: FileText, color: 'text-blue-600' }
   if (contentType === 'application/vnd.ms-excel' || contentType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return { icon: FileSpreadsheet, color: 'text-green-600' }
@@ -119,7 +119,7 @@ export function getFileIcon(filename: string, contentType: string): { icon: any;
 
   switch (extension) {
     case 'zip': case 'rar': case '7z': return { icon: FileArchive, color: 'text-orange-500' }
-    case 'pdf': return { icon: BookOpen, color: 'text-red-500' }
+    case 'pdf': return { icon: FileText, color: 'text-red-500' }
     case 'doc': case 'docx': return { icon: FileText, color: 'text-blue-600' }
     case 'xls': case 'xlsx': return { icon: FileSpreadsheet, color: 'text-green-600' }
     case 'ppt': case 'pptx': return { icon: FileCheck, color: 'text-red-600' }

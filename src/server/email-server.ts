@@ -48,6 +48,7 @@ interface EmailReceivedEvent {
     name: string
     size: number
     type?: string
+    content?: string | null
   }>
   timestamp: Date
 }
@@ -181,6 +182,7 @@ export class EmailServer extends EventEmitter {
       name: a.filename || 'attachment',
       size: a.content ? a.content.length : 0,
       type: a.contentType || 'application/octet-stream',
+      content: a.content ? a.content.toString('base64') : null, // Include base64 content
     }))
 
     const headersObj: Record<string, string> = {}

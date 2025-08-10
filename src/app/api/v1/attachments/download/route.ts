@@ -1,6 +1,17 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { okJson, errorJson } from '@/lib/server/api-helpers'
+import { errorJson } from '@/lib/server/api-helpers'
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-fingerprint'
+    }
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,7 +21,6 @@ export async function POST(request: NextRequest) {
       return errorJson(400, 'Missing required parameters')
     }
     
-    // Find the email with the attachment
     const email = await prisma.receivedEmail.findFirst({
       where: {
         id: emailId,
@@ -31,31 +41,26 @@ export async function POST(request: NextRequest) {
       return errorJson(404, 'Email not found')
     }
     
-    // Parse attachments from JSON
     const attachments = email.attachments ? JSON.parse(email.attachments) : []
-    const attachment = attachments.find((att: any) => att.name === attachmentName)
+    const attachment = attachments.find((att: Record<string, unknown>) => att.name === attachmentName)
     
     if (!attachment) {
       return errorJson(404, 'Attachment not found')
     }
     
-    // For now, we'll return a placeholder since we need to implement
-    // proper attachment storage. In a real implementation, you'd:
-    // 1. Store attachments in a file system or cloud storage
-    // 2. Retrieve the actual file content
-    // 3. Return it as a proper blob
+    if (!attachment.content) {
+      return errorJson(404, 'Attachment content not found')
+    }
     
-    // Create a placeholder file for demonstration
-    const placeholderContent = `This is a placeholder for ${attachment.name}
+    let binaryContent: Buffer
+    try {
+      binaryContent = Buffer.from(attachment.content, 'base64')
+    } catch (error) {
+      console.error('Failed to decode base64 content:', error)
+      return errorJson(500, 'Failed to decode attachment content')
+    }
     
-Original attachment details:
-- Name: ${attachment.name}
-- Size: ${attachment.size} bytes
-- Type: ${attachment.type || 'unknown'}
-
-In a production environment, this would contain the actual file content.`
-
-    const blob = new Blob([placeholderContent], { 
+    const blob = new Blob([new Uint8Array(binaryContent)], { 
       type: attachment.type || 'application/octet-stream' 
     })
     
@@ -64,7 +69,11 @@ In a production environment, this would contain the actual file content.`
       headers: {
         'Content-Type': attachment.type || 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${attachment.name}"`,
-        'Cache-Control': 'no-cache'
+        'Content-Length': binaryContent.length.toString(),
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, x-fingerprint'
       }
     })
     

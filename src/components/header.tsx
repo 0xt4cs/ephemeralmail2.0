@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button'
 type HeaderProps = {
   onRefresh?: () => void
   onMenuToggle?: () => void
-  currentTitle?: string
 }
 
-export function Header({ onRefresh, onMenuToggle, currentTitle }: HeaderProps) {
+export function Header({ onRefresh, onMenuToggle }: HeaderProps) {
   return (
     <header className="border-b border-border bg-card h-16 flex items-center justify-between px-6">
       <div className="flex items-center gap-3">
@@ -28,7 +27,7 @@ export function Header({ onRefresh, onMenuToggle, currentTitle }: HeaderProps) {
         
         <Mail className="h-6 w-6 text-primary" />
         <h1 className="text-xl font-bold">
-          {currentTitle || 'EphemeralMail'}
+          EphemeralMail
         </h1>
       </div>
       
