@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
       },
     })
     const nextCursor = messages.length > limit ? messages[limit].id : undefined
-    const items = messages.slice(0, limit).map(message => ({
+    const items = messages.slice(0, limit).map((message: typeof messages[0]) => ({
       id: message.id,
       fromAddress: message.fromAddress,
       subject: message.subject,
