@@ -82,7 +82,12 @@ const PostSchema = z.object({
   bodyText: z.string().optional().nullable(),
   headers: z.record(z.string(), z.any()).optional(),
   messageId: z.string().min(3),
-  attachments: z.array(z.object({ name: z.string(), size: z.number().int().nonnegative(), type: z.string().optional() })).optional(),
+  attachments: z.array(z.object({ 
+    name: z.string(), 
+    size: z.number().int().nonnegative(), 
+    type: z.string().optional(),
+    content: z.string().optional().nullable()
+  })).optional(),
 })
 
 export async function POST(request: NextRequest) {
