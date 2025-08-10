@@ -69,7 +69,7 @@ export class EmailServer extends EventEmitter {
     super()
     this.config = config
     this.smtpServer = this.createSMTPServer()
-    this.initializeSMTPClient()
+    // this.initializeSMTPClient() // Disabled for now - focus on receiving emails only
   }
 
   // Create SMTP server for receiving emails
