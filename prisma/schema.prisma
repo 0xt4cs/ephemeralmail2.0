@@ -24,17 +24,22 @@ model Session {
 model Email {
   id            String         @id @default(cuid())
   emailAddress  String         @unique
-  sessionId     String
-  session       Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     String?        // Optional for public generated emails
+  session       Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   createdAt     DateTime       @default(now())
   expiresAt     DateTime
   isActive      Boolean        @default(true)
+  deletedAt     DateTime?      // Soft delete timestamp
+  deletedBy     String?        // Session fingerprint that deleted it
   receivedEmails ReceivedEmail[]
+  isRecovered   Boolean        @default(false) // Track if recovered from soft delete
 
   @@index([sessionId])
   @@index([sessionId, createdAt])
   @@index([expiresAt])
   @@index([isActive])
+  @@index([deletedAt])
+  @@index([emailAddress, deletedAt]) // For recovery lookup
 }
 
 model ReceivedEmail {

@@ -3,17 +3,16 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { 
   Download, 
-  File, 
   Mail, 
   Calendar, 
   User, 
-  ArrowLeft,
+  Eye,
+  EyeOff,
   Paperclip
 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { handleAttachmentDownload, getFileIcon, formatFileSize } from '@/lib/attachment-handler'
 
 interface EmailContentProps {
   selected: {
@@ -46,82 +45,27 @@ export function EmailContent({ selected }: EmailContentProps) {
     )
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const getFileIcon = (type?: string) => {
-    if (!type) return <File className="h-4 w-4" />
-    
-    if (type.startsWith('image/')) return <File className="h-4 w-4 text-green-500" />
-    if (type.startsWith('video/')) return <File className="h-4 w-4 text-purple-500" />
-    if (type.startsWith('audio/')) return <File className="h-4 w-4 text-blue-500" />
-    if (type.includes('pdf')) return <File className="h-4 w-4 text-red-500" />
-    if (type.includes('zip') || type.includes('rar')) return <File className="h-4 w-4 text-orange-500" />
-    if (type.includes('doc') || type.includes('word')) return <File className="h-4 w-4 text-blue-600" />
-    if (type.includes('xls') || type.includes('excel')) return <File className="h-4 w-4 text-green-600" />
-    if (type.includes('ppt') || type.includes('powerpoint')) return <File className="h-4 w-4 text-orange-600" />
-    if (type.includes('txt')) return <File className="h-4 w-4 text-gray-500" />
-    
-    return <File className="h-4 w-4" />
-  }
-
   const handleDownload = async (attachment: { name: string; size: number; type?: string }) => {
-    try {
-      // For now, we'll create a blob URL for demonstration
-      // In a real implementation, you'd fetch the actual file from your server
-      const blob = new Blob(['Attachment content would be here'], { 
-        type: attachment.type || 'application/octet-stream' 
-      })
-      const url = URL.createObjectURL(blob)
-      
-      const a = document.createElement('a')
-      a.href = url
-      a.download = attachment.name
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Download failed:', error)
-      alert('Download failed. Please try again.')
+    // Get fingerprint from localStorage
+    const stored = localStorage.getItem('ephemeralmail_fingerprint')
+    let fingerprint = 'temp_' + Date.now().toString(36)
+    
+    if (stored) {
+      try {
+        const fp = JSON.parse(stored)
+        fingerprint = fp.id
+      } catch {
+        // Use default fingerprint
+      }
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      return formatDistanceToNow(date, { addSuffix: true })
-    } catch {
-      return 'Unknown date'
-    }
+    
+    await handleAttachmentDownload(selected.id, attachment, fingerprint)
   }
 
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="border-b border-border p-4 bg-card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHeaders(!showHeaders)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {showHeaders ? 'Hide Headers' : 'Show Headers'}
-            </Button>
-          </div>
-          <Badge variant="secondary" className="text-xs">
-            {formatDate(selected.receivedAt)}
-          </Badge>
-        </div>
-
         <div className="space-y-2">
           <h1 className="text-xl font-semibold line-clamp-2">{selected.subject}</h1>
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -132,6 +76,30 @@ export function EmailContent({ selected }: EmailContentProps) {
             <Calendar className="h-4 w-4" />
             <span>{new Date(selected.receivedAt).toLocaleString()}</span>
           </div>
+          
+          {/* Headers Toggle Button - Now under the date */}
+          {selected.headers && (
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowHeaders(!showHeaders)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {showHeaders ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide Headers
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Show Headers
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Attachments */}
@@ -147,7 +115,9 @@ export function EmailContent({ selected }: EmailContentProps) {
                   key={index}
                   className="flex items-center space-x-2 p-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
                 >
-                  {getFileIcon(attachment.type)}
+                  <span className={`text-lg ${getFileIcon(attachment.type).color}`}>
+                    {getFileIcon(attachment.type).icon}
+                  </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{attachment.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -161,6 +131,7 @@ export function EmailContent({ selected }: EmailContentProps) {
                     className="h-8 w-8 p-0"
                     onClick={() => handleDownload(attachment)}
                     title={`Download ${attachment.name}`}
+                    data-attachment={attachment.name}
                   >
                     <Download className="h-4 w-4" />
                   </Button>

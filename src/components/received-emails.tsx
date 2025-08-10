@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { 
   Search, 
   RefreshCw, 
@@ -31,10 +29,11 @@ interface ReceivedEmail {
 interface ReceivedEmailsProps {
   fingerprint: string
   selectedEmailAddress: string
+  selectedMessage?: ReceivedEmail | null
   onSelectMessage: (message: ReceivedEmail) => void
 }
 
-export function ReceivedEmails({ fingerprint, selectedEmailAddress, onSelectMessage }: ReceivedEmailsProps) {
+export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMessage, onSelectMessage }: ReceivedEmailsProps) {
   const [emails, setEmails] = useState<ReceivedEmail[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -112,25 +111,8 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, onSelectMess
 
   return (
     <div className="h-full flex flex-col bg-card">
-      {/* Header */}
+      {/* Search */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center">
-            <Mail className="h-5 w-5 mr-2" />
-            Received Messages
-          </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchEmails}
-            disabled={loading}
-            className="h-8 w-8 p-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -170,13 +152,19 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, onSelectMess
             {filteredEmails.map((email) => (
               <div
                 key={email.id}
-                className="group p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-all cursor-pointer"
+                className={`group p-3 rounded-lg border transition-all cursor-pointer hover:bg-accent/50 ${
+                  selectedMessage?.id === email.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
                 onClick={() => onSelectMessage(email)}
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm line-clamp-1 mb-1">
+                    <h3 className={`font-medium text-sm line-clamp-1 mb-1 ${
+                      selectedMessage?.id === email.id ? 'text-primary' : ''
+                    }`}>
                       {email.subject || '(No Subject)'}
                     </h3>
                     <div className="flex items-center space-x-2 text-xs text-muted-foreground">
@@ -204,9 +192,9 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, onSelectMess
                 {email.attachments && email.attachments.length > 0 && (
                   <div className="flex items-center space-x-1 mt-2">
                     <Paperclip className="h-3 w-3 text-muted-foreground" />
-                    <Badge variant="outline" className="text-xs">
+                    <span className="text-xs text-muted-foreground">
                       {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
-                    </Badge>
+                    </span>
                   </div>
                 )}
               </div>

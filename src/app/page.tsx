@@ -6,7 +6,7 @@ import { ReceivedEmails } from '@/components/received-emails'
 import { EmailContent } from '@/components/email-content'
 import { Header } from '@/components/header'
 import { getOrCreateClientFingerprint } from '@/lib/utils'
-import { X } from 'lucide-react'
+import { X, Menu, ArrowLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface ReceivedEmail {
@@ -28,8 +28,8 @@ export default function Home() {
   const [fingerprint, setFingerprint] = useState<string>('')
   const [selectedEmailAddress, setSelectedEmailAddress] = useState<string>('')
   const [selectedMessage, setSelectedMessage] = useState<ReceivedEmail | null>(null)
-
-  const [mobileView, setMobileView] = useState<'emails' | 'messages' | 'content'>('emails')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [sidePanelView, setSidePanelView] = useState<'emails' | 'messages'>('emails')
 
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
@@ -55,99 +55,174 @@ export default function Home() {
 
   const handleSelectEmail = (address: string) => {
     setSelectedEmailAddress(address)
-    if (window.innerWidth < 1024) {
-      setMobileView('messages')
-    }
+    setSidePanelView('messages') // Switch to Emails Received view
   }
 
   const handleSelectMessage = (message: ReceivedEmail) => {
     setSelectedMessage(message)
-    if (window.innerWidth < 1024) {
-      setMobileView('content')
+    setMobileMenuOpen(false) // Close menu when message is selected
+  }
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen)
+    // Reset to emails view when opening menu
+    if (!mobileMenuOpen) {
+      setSidePanelView('emails')
     }
   }
 
   const handleBackToEmails = () => {
+    setSidePanelView('emails')
     setSelectedEmailAddress('')
-    setSelectedMessage(null)
-    setMobileView('emails')
   }
 
-  const handleBackToMessages = () => {
-    setSelectedMessage(null)
-    setMobileView('messages')
+  // Prevent body scroll when menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.classList.add('menu-open')
+    } else {
+      document.body.classList.remove('menu-open')
+    }
+
+    return () => {
+      document.body.classList.remove('menu-open')
+    }
+  }, [mobileMenuOpen])
+
+  // Get adaptive title based on current state
+  const getCurrentTitle = () => {
+    if (selectedMessage?.subject) {
+      return selectedMessage.subject
+    }
+    if (selectedEmailAddress) {
+      return selectedEmailAddress
+    }
+    return 'EphemeralMail'
   }
-
-
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onRefresh={handleRefresh} />
+      <Header 
+        onRefresh={handleRefresh} 
+        onMenuToggle={toggleMobileMenu} 
+        currentTitle={getCurrentTitle()}
+      />
       
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        {/* Mobile Navigation */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            {mobileView === 'messages' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBackToEmails}
-                className="flex items-center space-x-2"
-              >
-                <X className="h-4 w-4" />
-                <span>Back to Emails</span>
-              </Button>
-            )}
-            {mobileView === 'content' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBackToMessages}
-                className="flex items-center space-x-2"
-              >
-                <X className="h-4 w-4" />
-                <span>Back to Messages</span>
-              </Button>
-            )}
-            <div className="flex-1 text-center">
-              <span className="text-sm font-medium">
-                {mobileView === 'emails' && 'Email Addresses'}
-                {mobileView === 'messages' && selectedEmailAddress}
-                {mobileView === 'content' && selectedMessage?.subject}
-              </span>
+        {/* Mobile Side Menu with Breadcrumb Navigation */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/50"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            {/* Side Menu */}
+            <div className="fixed left-0 top-0 h-full w-80 bg-background border-r border-border shadow-lg">
+              <div className="flex flex-col h-full">
+                {/* Menu Header with Breadcrumb */}
+                <div className="p-4 border-b border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-semibold flex items-center">
+                      <Mail className="h-5 w-5 mr-2" />
+                      {sidePanelView === 'emails' ? 'Generated Emails' : 'Received'}
+                    </h2>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Breadcrumb Navigation */}
+                  <div className="flex items-center space-x-2 text-sm">
+                    {sidePanelView === 'messages' && (
+                      <>
+                        <span className="text-muted-foreground">/</span>
+                        <span className="text-primary font-medium">Received</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Menu Content - Full Screen Views */}
+                <div className="flex-1 overflow-hidden">
+                  {sidePanelView === 'emails' && (
+                    <div className="h-full">
+                      <EmailList
+                        fingerprint={fingerprint}
+                        selectedEmailAddress={selectedEmailAddress}
+                        onSelectEmail={handleSelectEmail}
+                      />
+                    </div>
+                  )}
+                  
+                  {sidePanelView === 'messages' && (
+                    <div className="h-full">
+                      {/* Back Button */}
+                      <div className="p-3 border-b border-border">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleBackToEmails}
+                          className="flex items-center space-x-2"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                          <span>Back to Generated Emails</span>
+                        </Button>
+                      </div>
+                      
+                      {/* Emails Received Content */}
+                      <div className="h-[calc(100%-4rem)]">
+                        {selectedEmailAddress ? (
+                          <ReceivedEmails
+                            fingerprint={fingerprint}
+                            selectedEmailAddress={selectedEmailAddress}
+                            selectedMessage={selectedMessage}
+                            onSelectMessage={handleSelectMessage}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-muted-foreground p-4">
+                            <div className="text-center">
+                              <p className="text-sm">Select an email to view messages</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Mobile Content */}
-        <div className="h-[calc(100vh-8rem)]">
-          {mobileView === 'emails' && (
-            <EmailList
-              fingerprint={fingerprint}
-              selectedEmailAddress={selectedEmailAddress}
-              onSelectEmail={handleSelectEmail}
-            />
-          )}
-          {mobileView === 'messages' && selectedEmailAddress && (
-            <ReceivedEmails
-              fingerprint={fingerprint}
-              selectedEmailAddress={selectedEmailAddress}
-              onSelectMessage={handleSelectMessage}
-            />
-          )}
-          {mobileView === 'content' && selectedMessage && (
+        {/* Mobile Main Content - ONLY Email Content or Welcome Screen */}
+        <div className="h-[calc(100vh-4rem)]">
+          {selectedMessage ? (
             <EmailContent selected={selectedMessage} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <div className="text-center">
+                <Menu className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium mb-2">Welcome to EphemeralMail</p>
+                <p className="text-sm">Tap the menu button to get started</p>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Desktop Layout */}
-      <div className="hidden lg:block">
-        <div className="flex h-[calc(100vh-4rem)]">
-          {/* Left: Email List (smaller) */}
-          <div className="w-1/5 border-r border-border">
+      {/* Desktop Layout - Hidden on Mobile */}
+      <div className="hidden lg:flex">
+        <div className="flex h-[calc(100vh-4rem)] w-full">
+          {/* Left: Generated Emails (15%) */}
+          <div className="w-[15%] border-r border-border">
             <EmailList
               fingerprint={fingerprint}
               selectedEmailAddress={selectedEmailAddress}
@@ -155,12 +230,13 @@ export default function Home() {
             />
           </div>
 
-          {/* Middle: Received Emails (medium) */}
-          <div className="w-2/5 border-r border-border">
+          {/* Middle: Emails Received (15%) */}
+          <div className="w-[15%] border-r border-border">
             {selectedEmailAddress ? (
               <ReceivedEmails
                 fingerprint={fingerprint}
                 selectedEmailAddress={selectedEmailAddress}
+                selectedMessage={selectedMessage}
                 onSelectMessage={handleSelectMessage}
               />
             ) : (
@@ -172,8 +248,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right: Email Content (larger) */}
-          <div className="w-2/5">
+          {/* Right: Email Content (70%) */}
+          <div className="w-[70%]">
             {selectedMessage ? (
               <EmailContent selected={selectedMessage} />
             ) : (

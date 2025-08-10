@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       select: { id: true, fromAddress: true, subject: true, bodyHtml: true, bodyText: true, headers: true, attachments: true, receivedAt: true },
     })
     const nextCursor = messages.length > limit ? messages[limit].id : undefined
-    const page = messages.slice(0, limit).map(message => ({
+    const page = messages.slice(0, limit).map((message: typeof messages[0]) => ({
       id: message.id,
       fromAddress: message.fromAddress,
       subject: message.subject,

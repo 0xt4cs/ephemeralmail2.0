@@ -19,7 +19,16 @@ export async function GET(req: NextRequest) {
 
     const row = await prisma.email.findUnique({
       where: { emailAddress: parsed.data.email },
-      select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
+      select: { 
+        id: true, 
+        emailAddress: true, 
+        createdAt: true, 
+        expiresAt: true, 
+        isActive: true,
+        sessionId: true,
+        deletedAt: true,
+        isRecovered: true
+      },
     })
     if (!row) return errorJson(404, 'Email not found')
     
@@ -30,10 +39,14 @@ export async function GET(req: NextRequest) {
         emailAddress: row.emailAddress,
         createdAt: row.createdAt.toISOString(),
         expiresAt: row.expiresAt.toISOString(),
-        isActive: row.isActive
+        isActive: row.isActive,
+        isPublic: row.sessionId === null,
+        deletedAt: row.deletedAt?.toISOString() || null,
+        isRecovered: row.isRecovered || false
       },
       meta: {
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        credits: 'EphemeralMail by @0xt4cs - https://github.com/0xt4cs'
       }
     }, { 'Cache-Control': 'public, max-age=15' })
   } catch (e) {

@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { 
   Plus, 
   Copy, 
@@ -135,25 +134,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
 
   return (
     <div className="h-full flex flex-col bg-card">
-      {/* Header */}
+      {/* Generate Controls */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center">
-            <Mail className="h-5 w-5 mr-2" />
-            Email Addresses
-          </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchEmails}
-            disabled={loading}
-            className="h-8 w-8 p-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {/* Generate Controls */}
         <div className="space-y-3">
           {/* Custom Email Input */}
           <div className="flex space-x-2">
@@ -225,7 +207,11 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
                 {/* Email Address */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{email.address}</p>
+                    <p className={`font-medium text-sm truncate ${
+                      selectedEmailAddress === email.address ? 'text-primary' : ''
+                    }`}>
+                      {email.address}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Created {new Date(email.createdAt).toLocaleDateString()}
                     </p>
@@ -261,13 +247,6 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
                     </Button>
                   </div>
                 </div>
-
-                {/* Selected Indicator */}
-                {selectedEmailAddress === email.address && (
-                  <Badge variant="secondary" className="text-xs">
-                    Selected
-                  </Badge>
-                )}
               </div>
             ))}
           </div>
