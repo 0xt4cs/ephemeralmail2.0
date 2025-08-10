@@ -46,7 +46,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       
       const data = await response.json()
       if (data.success) {
-        setEmails(data.data.items || [])
+        const emailList = data.data.items || []
+        setEmails(emailList)
       } else {
         throw new Error(data.error || 'Failed to fetch emails')
       }
@@ -77,7 +78,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       
       const data = await response.json()
       if (data.success) {
-        await fetchEmails()
+        await fetchEmails() // Refresh the list
         if (data.data.address) {
           onSelectEmail(data.data.address)
         }
@@ -126,9 +127,12 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     }
   }
 
+  // Fetch emails on mount and when fingerprint changes
   useEffect(() => {
-    fetchEmails()
-  }, [fetchEmails])
+    if (fingerprint) {
+      fetchEmails()
+    }
+  }, [fingerprint, fetchEmails])
 
   return (
     <div className="h-full flex flex-col bg-card">

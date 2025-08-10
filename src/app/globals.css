@@ -224,6 +224,27 @@
     @apply h-9 px-3 text-sm sm:h-10 sm:px-3 sm:text-base;
   }
 
+  /* Sidebar responsive styles */
+  .sidebar-container {
+    @apply fixed inset-y-0 left-0 z-50 w-80 bg-background border-r border-border transform transition-transform duration-300 ease-in-out;
+  }
+
+  .sidebar-open {
+    @apply translate-x-0;
+  }
+
+  .sidebar-closed {
+    @apply -translate-x-full;
+  }
+
+  .sidebar-desktop {
+    @apply relative translate-x-0 z-auto;
+  }
+
+  .sidebar-overlay {
+    @apply fixed inset-0 bg-black/50 z-40;
+  }
+
   /* Email content styles */
   .email-content {
     @apply prose prose-sm max-w-none dark:prose-invert;
@@ -288,6 +309,21 @@
   .flex-responsive-reverse {
     @apply flex flex-col-reverse sm:flex-row;
   }
+
+  /* Mobile-specific improvements */
+  @media (max-width: 640px) {
+    .mobile-optimized {
+      @apply text-sm;
+    }
+    
+    .mobile-padding {
+      @apply p-3;
+    }
+    
+    .mobile-margin {
+      @apply m-2;
+    }
+  }
 }
 
 @layer utilities {
@@ -342,5 +378,18 @@
   /* Responsive shadows */
   .shadow-responsive {
     @apply shadow-sm sm:shadow-md lg:shadow-lg;
+  }
+
+  /* Mobile touch improvements */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
   }
 }
