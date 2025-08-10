@@ -37,3 +37,4 @@ deploy.sh
 coverage/
 **/*.local.*
 favicon_io/
+Mailserver
