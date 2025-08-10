@@ -35,7 +35,13 @@ export async function GET(request: NextRequest) {
         select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
       })
       if (!email) return errorJson(404, 'Email not found')
-      return okJson(email)
+      return okJson({
+        id: email.id,
+        address: email.emailAddress,
+        createdAt: email.createdAt,
+        expiresAt: email.expiresAt,
+        isActive: email.isActive
+      })
     }
 
     const emails = await prisma.email.findMany({
@@ -47,7 +53,13 @@ export async function GET(request: NextRequest) {
       select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
     })
     const nextCursor = emails.length > limit ? emails[limit].id : undefined
-    const page = emails.slice(0, limit)
+    const page = emails.slice(0, limit).map(email => ({
+      id: email.id,
+      address: email.emailAddress,
+      createdAt: email.createdAt,
+      expiresAt: email.expiresAt,
+      isActive: email.isActive
+    }))
 
     return okJson({ items: page, nextCursor }, {
       'Cache-Control': 'private, max-age=5',
