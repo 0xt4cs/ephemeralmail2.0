@@ -1,193 +1,226 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from 'react'
-import { Mail, Clock, User } from 'lucide-react'
-import { truncateText, formatDate } from '@/lib/utils'
+import { useState, useEffect, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { 
+  Search, 
+  RefreshCw, 
+  Mail, 
+  Paperclip,
+  Calendar,
+  User
+} from 'lucide-react'
 
 interface ReceivedEmail {
   id: string
   fromAddress: string
   subject: string
-  receivedAt: Date
-  hasAttachments: boolean
+  receivedAt: string
+  bodyHtml?: string | null
+  bodyText?: string | null
+  headers?: Record<string, string>
+  attachments?: Array<{
+    name: string
+    size: number
+    type?: string
+  }>
 }
 
 interface ReceivedEmailsProps {
   fingerprint: string
-  selectedEmailAddress: string | null
-  onSelectMessage?: (message: {
-    id: string
-    fromAddress: string
-    subject: string
-    receivedAt: Date
-    bodyHtml?: string | null
-    bodyText?: string | null
-    headers?: Record<string, string>
-    attachments?: Array<{ name: string; size: number; type?: string }>
-  }) => void
+  selectedEmailAddress: string
+  onSelectMessage: (message: ReceivedEmail) => void
 }
 
 export function ReceivedEmails({ fingerprint, selectedEmailAddress, onSelectMessage }: ReceivedEmailsProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedEmail, setSelectedEmail] = useState<string | null>(null)
   const [emails, setEmails] = useState<ReceivedEmail[]>([])
   const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch received emails when fingerprint or selected address changes
-  useEffect(() => {
-    if (fingerprint) {
-      void fetchReceivedEmails()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fingerprint, selectedEmailAddress])
-
-  const fetchReceivedEmails = async (): Promise<void> => {
+  const fetchEmails = useCallback(async () => {
+    if (!fingerprint || !selectedEmailAddress) return
+    
+    setLoading(true)
+    setError(null)
+    
     try {
-      setLoading(true)
-      const base = `/api/v1/received?fingerprint=${fingerprint}`
-      const response = await fetch(selectedEmailAddress ? `${base}&email=${encodeURIComponent(selectedEmailAddress)}` : base)
-      if (response.status === 404) {
-        setEmails([])
-        setError(null)
-        return
-      }
-      const data = await response.json().catch(() => ({}))
+      const response = await fetch(`/api/v1/received?fingerprint=${fingerprint}&email=${encodeURIComponent(selectedEmailAddress)}`)
+      if (!response.ok) throw new Error('Failed to fetch emails')
       
-      if (response.ok && data?.success) {
-        const allReceivedEmails: ReceivedEmail[] = []
-        if (Array.isArray(data.data?.items)) {
-          // If API returned flattened items for a selected address
-          data.data.items.forEach((received: {
-            id: string;
-            fromAddress: string;
-            subject: string;
-            receivedAt: string | Date;
-            attachments?: string | null;
-          }) => {
-            allReceivedEmails.push({
-              id: received.id,
-              fromAddress: received.fromAddress,
-              subject: received.subject,
-              receivedAt: new Date(received.receivedAt),
-              hasAttachments: !!received.attachments && JSON.parse(received.attachments).length > 0,
-            })
-          })
-        } else if (Array.isArray(data.data?.emails)) {
-          // Older shape safeguard
-          data.data.emails.forEach((email: { receivedEmails: Array<{ id: string; fromAddress: string; subject: string; receivedAt: string | Date; attachments?: string | null }>; }) => {
-            email.receivedEmails.forEach((received) => {
-              allReceivedEmails.push({
-                id: received.id,
-                fromAddress: received.fromAddress,
-                subject: received.subject,
-                receivedAt: new Date(received.receivedAt),
-                hasAttachments: received.attachments ? JSON.parse(received.attachments).length > 0 : false,
-              })
-            })
-          })
-        }
-        setEmails(allReceivedEmails)
+      const data = await response.json()
+      if (data.success) {
+        setEmails(data.data.items || [])
       } else {
-        const message = typeof data?.error?.message === 'string' ? data.error.message : 'Failed to fetch received emails'
-        setError(message)
+        throw new Error(data.error || 'Failed to fetch emails')
       }
-    } catch (error) {
-      setError('Failed to fetch received emails')
-      console.error('Error fetching received emails:', error)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch emails')
     } finally {
       setLoading(false)
     }
+  }, [fingerprint, selectedEmailAddress])
+
+  useEffect(() => {
+    if (selectedEmailAddress) {
+      fetchEmails()
+    } else {
+      setEmails([])
+    }
+  }, [selectedEmailAddress, fetchEmails])
+
+  const filteredEmails = emails.filter(email => 
+    email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    email.fromAddress.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      const now = new Date()
+      const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+      
+      if (diffInHours < 24) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      } else if (diffInHours < 168) { // 7 days
+        return date.toLocaleDateString([], { weekday: 'short' })
+      } else {
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      }
+    } catch {
+      return 'Unknown'
+    }
   }
 
-  const handleEmailClick = (emailId: string) => {
-    const msg = emails.find(e => e.id === emailId)
-    if (!msg) return
-    onSelectMessage?.({
-      id: msg.id,
-      fromAddress: msg.fromAddress,
-      subject: msg.subject,
-      receivedAt: msg.receivedAt,
-    })
+  const truncateText = (text: string, maxLength: number = 50) => {
+    if (text.length <= maxLength) return text
+    return text.substring(0, maxLength) + '...'
   }
 
-  if (!fingerprint) {
+  if (!selectedEmailAddress) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
         <div className="text-center">
-          <Mail className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p>Loading fingerprint...</p>
+          <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>Select an email address to view received messages</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-card">
+      {/* Header */}
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold mb-2">Received Emails</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold flex items-center">
+            <Mail className="h-5 w-5 mr-2" />
+            Received Messages
+          </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchEmails}
+            disabled={loading}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search messages..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 text-sm"
+          />
+        </div>
+
+        {/* Error Display */}
         {error && (
-          <div className="mb-3 p-2 bg-destructive/10 text-destructive text-sm rounded">
+          <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
             {error}
           </div>
         )}
-        {selectedEmail ? (
-          <p className="text-sm text-muted-foreground truncate">
-            {selectedEmail}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground">{selectedEmailAddress ? selectedEmailAddress : 'Select an email address to view received emails'}</p>
-        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {loading && emails.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <Mail className="w-8 h-8 mx-auto mb-2 opacity-50 animate-spin" />
-            <p>Loading received emails...</p>
+      {/* Email List */}
+      <div className="flex-1 overflow-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-32">
+            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : emails.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <Mail className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p>No emails received yet</p>
-            <p className="text-sm">Emails will appear here when received</p>
+        ) : filteredEmails.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground p-4">
+            <Mail className="h-8 w-8 mb-2 opacity-50" />
+            <p className="text-sm">
+              {searchTerm ? 'No messages match your search' : 'No messages received yet'}
+            </p>
+            <p className="text-xs">
+              {searchTerm ? 'Try a different search term' : 'Messages will appear here when received'}
+            </p>
           </div>
         ) : (
-          <div className="p-4 space-y-2">
-            {emails.map((email) => (
+          <div className="p-2 space-y-2">
+            {filteredEmails.map((email) => (
               <div
                 key={email.id}
-                className="p-3 border border-border rounded-lg bg-card hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => handleEmailClick(email.id)}
+                className="group p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-all cursor-pointer"
+                onClick={() => onSelectMessage(email)}
               >
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                  </div>
+                {/* Header */}
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-medium truncate">
-                        {email.fromAddress}
-                      </p>
-                      {email.hasAttachments && (
-                        <span className="text-xs bg-primary/10 text-primary px-1 py-0.5 rounded">
-                          📎
-                        </span>
-                      )}
+                    <h3 className="font-medium text-sm line-clamp-1 mb-1">
+                      {email.subject || '(No Subject)'}
+                    </h3>
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                      <User className="h-3 w-3" />
+                      <span className="truncate">{email.fromAddress}</span>
                     </div>
-                    <p className="text-sm text-foreground mb-1">
-                      {truncateText(email.subject, 50)}
-                    </p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      {formatDate(email.receivedAt)}
-                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2 text-xs text-muted-foreground shrink-0">
+                    <Calendar className="h-3 w-3" />
+                    <span>{formatDate(email.receivedAt)}</span>
                   </div>
                 </div>
+
+                {/* Preview */}
+                <div className="text-xs text-muted-foreground line-clamp-2">
+                  {email.bodyText ? 
+                    truncateText(email.bodyText, 100) : 
+                    email.bodyHtml ? 
+                      truncateText(email.bodyHtml.replace(/<[^>]*>/g, ''), 100) : 
+                      'No content'
+                  }
+                </div>
+
+                {/* Attachments */}
+                {email.attachments && email.attachments.length > 0 && (
+                  <div className="flex items-center space-x-1 mt-2">
+                    <Paperclip className="h-3 w-3 text-muted-foreground" />
+                    <Badge variant="outline" className="text-xs">
+                      {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-3 border-t border-border bg-muted/30">
+        <p className="text-xs text-muted-foreground text-center">
+          {filteredEmails.length} of {emails.length} messages
+          {searchTerm && ' (filtered)'}
+        </p>
       </div>
     </div>
   )

@@ -1,133 +1,191 @@
-"use client"
+'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Download, ArrowLeft, Calendar, User, FileText } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { 
+  Download, 
+  File, 
+  Mail, 
+  Calendar, 
+  User, 
+  ArrowLeft,
+  Paperclip
+} from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 
-interface EmailContent {
-  id: string
-  fromAddress: string
-  subject: string
-  receivedAt: Date
-  bodyHtml?: string | null
-  bodyText?: string | null
-  headers?: Record<string, string>
-  attachments?: Array<{
-    name: string
-    size: number
-    type?: string
-  }>
-}
-
-type EmailContentProps = {
-  selected: EmailContent | null
+interface EmailContentProps {
+  selected: {
+    id: string
+    fromAddress: string
+    subject: string
+    receivedAt: string
+    bodyHtml?: string | null
+    bodyText?: string | null
+    headers?: Record<string, string>
+    attachments?: Array<{
+      name: string
+      size: number
+      type?: string
+    }>
+  } | null
 }
 
 export function EmailContent({ selected }: EmailContentProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedEmail, setSelectedEmail] = useState<EmailContent | null>(selected)
+  const [showHeaders, setShowHeaders] = useState(false)
 
-  const [formattedDate, setFormattedDate] = useState<string>('')
-
-  useEffect(() => {
-    setSelectedEmail(selected)
-  }, [selected])
-
-  useEffect(() => {
-    if (selectedEmail) setFormattedDate(selectedEmail.receivedAt.toLocaleString())
-  }, [selectedEmail])
-
-  const exportToPdf = () => {
-    // This would implement PDF export functionality
-    console.log('Exporting to PDF...')
-  }
-
-  if (!selectedEmail) {
+  if (!selected) {
     return (
-      <div className="h-full flex items-center justify-center text-muted-foreground">
+      <div className="flex items-center justify-center h-full text-muted-foreground">
         <div className="text-center">
-          <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">No email selected</p>
-          <p className="text-sm">Select an email from the list to view its content</p>
+          <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>Select an email to view its content</p>
         </div>
       </div>
     )
   }
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const getFileIcon = (type?: string) => {
+    if (!type) return <File className="h-4 w-4" />
+    
+    if (type.startsWith('image/')) return <File className="h-4 w-4 text-green-500" />
+    if (type.startsWith('video/')) return <File className="h-4 w-4 text-purple-500" />
+    if (type.startsWith('audio/')) return <File className="h-4 w-4 text-blue-500" />
+    if (type.includes('pdf')) return <File className="h-4 w-4 text-red-500" />
+    if (type.includes('zip') || type.includes('rar')) return <File className="h-4 w-4 text-orange-500" />
+    
+    return <File className="h-4 w-4" />
+  }
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      return formatDistanceToNow(date, { addSuffix: true })
+    } catch {
+      return 'Unknown date'
+    }
+  }
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Email Header */}
-      <div className="p-6 border-b border-border bg-card">
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="border-b border-border p-4 bg-card">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4" />
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHeaders(!showHeaders)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {showHeaders ? 'Hide Headers' : 'Show Headers'}
             </Button>
-            <h1 className="text-xl font-semibold">{selectedEmail.subject}</h1>
           </div>
-          <Button onClick={exportToPdf} size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+          <Badge variant="secondary" className="text-xs">
+            {formatDate(selected.receivedAt)}
+          </Badge>
         </div>
 
-        {/* Email Details */}
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">From:</span>
-            <span>{selectedEmail.fromAddress}</span>
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold line-clamp-2">{selected.subject}</h1>
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span className="font-medium">{selected.fromAddress}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="font-medium">Received:</span>
-            <span>{formattedDate}</span>
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4" />
+            <span>{new Date(selected.receivedAt).toLocaleString()}</span>
           </div>
         </div>
-      </div>
 
-      {/* Email Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto">
-          {/* HTML Content */}
-          {selectedEmail.bodyHtml ? (
-            <div
-              className="prose prose-sm max-w-none dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml || '' }}
-            />
-          ) : null}
-          
-          {/* Text Content (fallback) */}
-          {!selectedEmail.bodyHtml && selectedEmail.bodyText && (
-            <div className="whitespace-pre-wrap text-sm">
-              {selectedEmail.bodyText}
+        {/* Attachments */}
+        {selected.attachments && selected.attachments.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center space-x-2 mb-2">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Attachments ({selected.attachments.length})</span>
             </div>
-          )}
-        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {selected.attachments.map((attachment, index) => (
+                <div
+                  key={index}
+                  className="flex items-center space-x-2 p-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
+                >
+                  {getFileIcon(attachment.type)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{attachment.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(attachment.size)}
+                      {attachment.type && ` • ${attachment.type}`}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Attachments */}
-      {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
-        <div className="p-6 border-t border-border bg-card">
-          <h3 className="text-sm font-medium mb-3">Attachments</h3>
-          <div className="space-y-2">
-            {selectedEmail.attachments.map((attachment, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 border border-border rounded-lg">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{attachment.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {attachment.type} • {(attachment.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-                <Button size="sm" variant="outline">
-                  <Download className="w-3 h-3" />
-                </Button>
+      {/* Headers (Collapsible) */}
+      {showHeaders && selected.headers && (
+        <div className="border-b border-border bg-muted/50">
+          <Card className="border-0 rounded-none">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Email Headers</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2 text-xs">
+                {Object.entries(selected.headers).map(([key, value]) => (
+                  <div key={key} className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
+                    <span className="font-mono font-medium text-muted-foreground min-w-[120px]">
+                      {key}:
+                    </span>
+                    <span className="font-mono break-all">{value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
+
+      {/* Email Body */}
+      <div className="flex-1 overflow-auto">
+        {selected.bodyHtml ? (
+          <div className="p-4">
+            <div 
+              className="prose prose-sm max-w-none dark:prose-invert"
+              dangerouslySetInnerHTML={{ __html: selected.bodyHtml }}
+            />
+          </div>
+        ) : selected.bodyText ? (
+          <div className="p-4">
+            <pre className="whitespace-pre-wrap font-sans text-sm bg-muted/50 p-4 rounded-md overflow-auto">
+              {selected.bodyText}
+            </pre>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            <div className="text-center">
+              <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No content available</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 } 

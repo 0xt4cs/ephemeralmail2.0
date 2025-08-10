@@ -9,70 +9,153 @@ import { getOrCreateClientFingerprint } from '@/lib/utils'
 
 export default function Home() {
   const [fingerprint, setFingerprint] = useState<string>('')
-  const [loading, setLoading] = useState(true)
-  const [refreshTick, setRefreshTick] = useState(0)
-  const [selectedEmailAddress, setSelectedEmailAddress] = useState<string | null>(null)
-  const [selectedMessage, setSelectedMessage] = useState<{
-    id: string
-    fromAddress: string
-    subject: string
-    receivedAt: Date
-    bodyHtml?: string | null
-    bodyText?: string | null
-    headers?: Record<string, string>
-    attachments?: Array<{ name: string; size: number; type?: string }>
-  } | null>(null)
+  const [selectedEmailAddress, setSelectedEmailAddress] = useState<string>('')
+  const [selectedMessage, setSelectedMessage] = useState<any>(null)
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
     setFingerprint(fp)
-    setLoading(false)
   }, [])
 
-  // Auto-refresh every 30s
   useEffect(() => {
-    const id = setInterval(() => setRefreshTick(t => t + 1), 30_000)
-    return () => clearInterval(id)
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      // Trigger refresh by updating fingerprint (this will cause re-renders)
+      setFingerprint(prev => prev)
+    }, 30000)
+
+    setAutoRefreshInterval(interval)
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
   }, [])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading EphemeralMail 2.0...</p>
-        </div>
-      </div>
-    )
+  const handleRefresh = () => {
+    // Force refresh by updating fingerprint
+    setFingerprint(prev => prev)
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onRefresh={() => setRefreshTick(t => t + 1)} />
-      <main className="flex h-[calc(100vh-4rem)]">
-        <div className="w-80 border-r border-border bg-card">
-          <EmailList
-            fingerprint={fingerprint}
-            key={`emails-${refreshTick}`}
-            selectedEmailAddress={selectedEmailAddress}
-            onSelectEmail={addr => {
-              setSelectedEmailAddress(addr)
-              setSelectedMessage(null)
-            }}
-          />
+      <Header onRefresh={handleRefresh} />
+      
+      {/* Mobile Layout - Stacked */}
+      <div className="block lg:hidden">
+        <div className="space-y-4 p-4">
+          {/* Email List - Full width on mobile */}
+          <div className="w-full">
+            <EmailList
+              fingerprint={fingerprint}
+              selectedEmailAddress={selectedEmailAddress}
+              onSelectEmail={setSelectedEmailAddress}
+            />
+          </div>
+
+          {/* Received Emails - Full width on mobile */}
+          {selectedEmailAddress && (
+            <div className="w-full">
+              <ReceivedEmails
+                fingerprint={fingerprint}
+                selectedEmailAddress={selectedEmailAddress}
+                onSelectMessage={setSelectedMessage}
+              />
+            </div>
+          )}
+
+          {/* Email Content - Full width on mobile */}
+          {selectedMessage && (
+            <div className="w-full">
+              <EmailContent selected={selectedMessage} />
+            </div>
+          )}
         </div>
-        <div className="w-96 border-r border-border bg-card">
-          <ReceivedEmails
-            fingerprint={fingerprint}
-            selectedEmailAddress={selectedEmailAddress}
-            key={`received-${refreshTick}-${selectedEmailAddress ?? 'none'}`}
-            onSelectMessage={(msg) => setSelectedMessage(msg)}
-          />
+      </div>
+
+      {/* Tablet Layout - 2 columns */}
+      <div className="hidden lg:block xl:hidden">
+        <div className="flex h-[calc(100vh-4rem)]">
+          {/* Left: Email List */}
+          <div className="w-1/3 border-r border-border">
+            <EmailList
+              fingerprint={fingerprint}
+              selectedEmailAddress={selectedEmailAddress}
+              onSelectEmail={setSelectedEmailAddress}
+            />
+          </div>
+
+          {/* Right: Received Emails + Content */}
+          <div className="w-2/3 flex flex-col">
+            {selectedEmailAddress ? (
+              <>
+                {/* Top: Received Emails */}
+                <div className="h-1/2 border-b border-border">
+                  <ReceivedEmails
+                    fingerprint={fingerprint}
+                    selectedEmailAddress={selectedEmailAddress}
+                    onSelectMessage={setSelectedMessage}
+                  />
+                </div>
+                {/* Bottom: Email Content */}
+                <div className="h-1/2">
+                  {selectedMessage ? (
+                    <EmailContent selected={selectedMessage} />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      Select an email to view content
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Generate an email address to get started
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex-1 bg-background">
-          <EmailContent selected={selectedMessage} />
+      </div>
+
+      {/* Desktop Layout - 3 columns */}
+      <div className="hidden xl:block">
+        <div className="flex h-[calc(100vh-4rem)]">
+          {/* Left: Email List */}
+          <div className="w-1/4 border-r border-border">
+            <EmailList
+              fingerprint={fingerprint}
+              selectedEmailAddress={selectedEmailAddress}
+              onSelectEmail={setSelectedEmailAddress}
+            />
+          </div>
+
+          {/* Middle: Received Emails */}
+          <div className="w-1/3 border-r border-border">
+            {selectedEmailAddress ? (
+              <ReceivedEmails
+                fingerprint={fingerprint}
+                selectedEmailAddress={selectedEmailAddress}
+                onSelectMessage={setSelectedMessage}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Generate an email address to get started
+              </div>
+            )}
+          </div>
+
+          {/* Right: Email Content */}
+          <div className="w-5/12">
+            {selectedMessage ? (
+              <EmailContent selected={selectedMessage} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Select an email to view content
+              </div>
+            )}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
