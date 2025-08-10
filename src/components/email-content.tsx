@@ -1,15 +1,13 @@
 'use client'
 
 
-import { Button } from '@/components/ui/button'
 import { 
-  Download, 
   Mail, 
   Calendar, 
   User, 
   Paperclip
 } from 'lucide-react'
-import { handleAttachmentDownload, getFileIcon, formatFileSize } from '@/lib/attachment-handler'
+import { FilePreview } from '@/components/file-preview'
 
 interface EmailContentProps {
   selected: {
@@ -41,7 +39,7 @@ export function EmailContent({ selected }: EmailContentProps) {
     )
   }
 
-  const handleDownload = async (attachment: { name: string; size: number; type?: string }) => {
+  const getFingerprint = (): string => {
     // Get fingerprint from localStorage
     const stored = localStorage.getItem('ephemeralmail_fingerprint')
     let fingerprint = 'temp_' + Date.now().toString(36)
@@ -55,7 +53,7 @@ export function EmailContent({ selected }: EmailContentProps) {
       }
     }
     
-    await handleAttachmentDownload(selected.id, attachment, fingerprint)
+    return fingerprint
   }
 
   return (
@@ -83,34 +81,14 @@ export function EmailContent({ selected }: EmailContentProps) {
               <Paperclip className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Attachments ({selected.attachments.length})</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="space-y-2">
               {selected.attachments.map((attachment, index) => (
-                <div
+                <FilePreview
                   key={index}
-                  className="flex items-center space-x-2 p-2 rounded-md border border-border bg-background hover:bg-accent transition-colors"
-                >
-                  {(() => {
-                    const { icon: Icon, color } = getFileIcon(attachment.name, attachment.type || 'application/octet-stream')
-                    return <Icon className={`h-5 w-5 ${color}`} />
-                  })()}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{attachment.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(attachment.size)}
-                      {attachment.type && ` • ${attachment.type}`}
-                    </p>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-8 w-8 p-0"
-                    onClick={() => handleDownload(attachment)}
-                    title={`Download ${attachment.name}`}
-                    data-attachment={attachment.name}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
+                  emailId={selected.id}
+                  attachment={attachment}
+                  fingerprint={getFingerprint()}
+                />
               ))}
             </div>
           </div>

@@ -12,6 +12,7 @@ import {
   Sparkles,
   Check
 } from 'lucide-react'
+import { retryRequest } from '@/lib/connectivity-utils'
 
 interface Email {
   id: string
@@ -33,6 +34,9 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Helper function for retrying failed requests
+    // Import retryRequest from connectivity-utils
+
   const fetchEmails = useCallback(async () => {
     if (!fingerprint) return
     
@@ -40,18 +44,37 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     setError(null)
     
     try {
-      const response = await fetch(`/api/v1/emails?fingerprint=${fingerprint}`)
-      if (!response.ok) throw new Error('Failed to fetch emails')
-      
-      const data = await response.json()
-      if (data.success) {
-        const emailList = data.data.items || []
-        setEmails(emailList)
-      } else {
-        throw new Error(data.error || 'Failed to fetch emails')
-      }
+      await retryRequest(async () => {
+        const response = await fetch(`/api/v1/emails?fingerprint=${fingerprint}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(10000)
+        })
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setEmails([])
+            return
+          }
+          throw new Error(`HTTP ${response.status}: Failed to fetch emails`)
+        }
+        
+        const data = await response.json()
+        if (data.success) {
+          const emailList = data.data.items || []
+          setEmails(emailList)
+        } else {
+          throw new Error(data.error || 'Failed to fetch emails')
+        }
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch emails')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timeout - please check your connection')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to fetch emails')
+      }
     } finally {
       setLoading(false)
     }
@@ -70,10 +93,16 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         body: JSON.stringify({
           fingerprint,
           customEmail: custom || undefined
-        })
+        }),
+        signal: AbortSignal.timeout(15000)
       })
       
-      if (!response.ok) throw new Error('Failed to generate email')
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded - please wait a moment')
+        }
+        throw new Error(`HTTP ${response.status}: Failed to generate email`)
+      }
       
       const data = await response.json()
       if (data.success) {
@@ -85,7 +114,11 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         throw new Error(data.error || 'Failed to generate email')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate email')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timeout - please check your connection')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to generate email')
+      }
     } finally {
       setGenerating(false)
       setCustomEmail('')
@@ -97,10 +130,19 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     
     try {
       const response = await fetch(`/api/v1/emails?id=${id}&fingerprint=${fingerprint}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000)
       })
       
-      if (!response.ok) throw new Error('Failed to delete email')
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded - please wait a moment')
+        }
+        throw new Error(`HTTP ${response.status}: Failed to delete email`)
+      }
       
       const data = await response.json()
       if (data.success) {
@@ -112,7 +154,11 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         throw new Error(data.error || 'Failed to delete email')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete email')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timeout - please check your connection')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to delete email')
+      }
     }
   }, [fingerprint, fetchEmails, selectedEmailAddress, emails, onSelectEmail])
 

@@ -28,8 +28,18 @@ export async function GET(request: NextRequest) {
     if (!parsed.success) return errorJson(400, 'Invalid query', parsed.error.flatten())
     const { fingerprint, id, limit = 20, cursor, includeDeleted = false } = parsed.data
 
-    const session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
-    if (!session) return errorJson(404, 'Session not found')
+    let session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
+    if (!session) {
+      try {
+        session = await prisma.session.create({ 
+          data: { fingerprint, emailCount: 0 }, 
+          select: { id: true } 
+        })
+      } catch (error) {
+        console.error('Failed to create session:', error)
+        return errorJson(500, 'Failed to create session')
+      }
+    }
 
     if (id) {
       const email = await prisma.email.findFirst({

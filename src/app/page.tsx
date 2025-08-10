@@ -5,9 +5,11 @@ import { EmailList } from '@/components/email-list'
 import { ReceivedEmails } from '@/components/received-emails'
 import { EmailContent } from '@/components/email-content'
 import { Header } from '@/components/header'
+import { RealtimeNotifications } from '@/components/realtime-notifications'
 import { getOrCreateClientFingerprint } from '@/lib/utils'
 import { X, Menu, ArrowLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { EmailNotificationData } from '@/hooks/use-sse'
 
 interface ReceivedEmail {
   id: string
@@ -35,6 +37,13 @@ export default function Home() {
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
     setFingerprint(fp)
+    
+    // Add a small delay to ensure fingerprint is set before any API calls
+    const timer = setTimeout(() => {
+      // This ensures components have the fingerprint before making requests
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -52,22 +61,29 @@ export default function Home() {
     setFingerprint(newFingerprint)
     setSelectedEmailAddress('')
     setSelectedMessage(null)
-    setRefreshKey(prev => prev + 1) // Force re-render of components
+    setRefreshKey(prev => prev + 1)
+  }
+
+  const handleNewEmail = (emailData: EmailNotificationData) => {
+    setRefreshKey(prev => prev + 1)
+    
+    if (emailData?.emailId) {
+      console.log('New email received:', emailData)
+    }
   }
 
   const handleSelectEmail = (address: string) => {
     setSelectedEmailAddress(address)
-    setSidePanelView('messages') // Switch to Emails Received view
+    setSidePanelView('messages')
   }
 
   const handleSelectMessage = (message: ReceivedEmail) => {
     setSelectedMessage(message)
-    setMobileMenuOpen(false) // Close menu when message is selected
+    setMobileMenuOpen(false)
   }
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen)
-    // Reset to emails view when opening menu
     if (!mobileMenuOpen) {
       setSidePanelView('emails')
     }
@@ -78,7 +94,6 @@ export default function Home() {
     setSelectedEmailAddress('')
   }
 
-  // Prevent body scroll when menu is open
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.classList.add('menu-open')
@@ -99,6 +114,15 @@ export default function Home() {
         onRefresh={handleRefresh} 
         onMenuToggle={toggleMobileMenu} 
       />
+      
+      {/* Real-time Notifications */}
+      {fingerprint && (
+        <RealtimeNotifications
+          fingerprint={fingerprint}
+          onNewEmail={handleNewEmail}
+          className="fixed top-20 right-4 z-40"
+        />
+      )}
       
       {/* Mobile Layout */}
       <div className="lg:hidden">

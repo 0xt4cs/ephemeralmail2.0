@@ -54,11 +54,16 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 export function getOrCreateClientFingerprint(): string {
-  // Use our comprehensive fingerprinting system
   if (typeof window !== 'undefined') {
-    // For now, use a simple but effective fingerprint
     const key = 'ephemeralmail_fingerprint'
-    const existing = localStorage.getItem(key)
+    
+    let existing: string | null = null
+    try {
+      existing = localStorage.getItem(key)
+    } catch (error) {
+      console.warn('localStorage not available, generating new fingerprint:', error)
+    }
+    
     if (existing) {
       try {
         const fingerprint = JSON.parse(existing)
@@ -66,18 +71,21 @@ export function getOrCreateClientFingerprint(): string {
           return fingerprint.id
         }
       } catch {
-        // Invalid stored fingerprint
       }
     }
     
-    // Generate a new fingerprint
     const fingerprint = {
       id: 'fp_' + Date.now().toString(36) + Math.random().toString(36).slice(2),
       timestamp: Date.now()
     }
-    localStorage.setItem(key, JSON.stringify(fingerprint))
+    
+    try {
+      localStorage.setItem(key, JSON.stringify(fingerprint))
+    } catch (error) {
+      console.warn('Could not store fingerprint in localStorage:', error)
+    }
+    
     return fingerprint.id
   }
-  // Fallback for server-side
   return 'server_' + Date.now().toString(36)
 } 

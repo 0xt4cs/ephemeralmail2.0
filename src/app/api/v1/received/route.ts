@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { errorJson, okJson, withHeaders, verifyWebhookSecret, sanitizeIncomingHtml } from '@/lib/api-helpers'
+import { sseManager } from '@/lib/sse-manager'
 import { z } from 'zod'
 
 export async function OPTIONS() {
@@ -122,6 +123,27 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true, emailId: true, fromAddress: true, subject: true, receivedAt: true },
     })
+
+    const emailWithSession = await prisma.email.findUnique({
+      where: { id: email.id },
+      select: {
+        session: {
+          select: { fingerprint: true }
+        }
+      }
+    })
+
+    if (emailWithSession?.session?.fingerprint) {
+      const notificationData = {
+        emailId: receivedEmail.id,
+        fromAddress: receivedEmail.fromAddress,
+        subject: receivedEmail.subject,
+        receivedAt: receivedEmail.receivedAt.toISOString(),
+        attachmentCount: attachments?.length || 0
+      }
+
+      sseManager.broadcastToFingerprint(emailWithSession.session.fingerprint, notificationData)
+    }
 
     return okJson({
       id: receivedEmail.id,

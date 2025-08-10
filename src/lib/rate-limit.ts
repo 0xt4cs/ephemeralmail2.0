@@ -3,7 +3,7 @@ type Bucket = {
   lastRefill: number
 }
 
-const MAX = Number(process.env.RATE_LIMIT_MAX ?? 60)
+const MAX = Number(process.env.RATE_LIMIT_MAX ?? 120)
 const WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000)
 
 const buckets = new Map<string, Bucket>()

@@ -46,8 +46,21 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
     setError(null)
     
     try {
-      const response = await fetch(`/api/v1/received?fingerprint=${fingerprint}&email=${encodeURIComponent(selectedEmailAddress)}`)
-      if (!response.ok) throw new Error('Failed to fetch emails')
+      const response = await fetch(`/api/v1/received?fingerprint=${fingerprint}&email=${encodeURIComponent(selectedEmailAddress)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000)
+      })
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setEmails([])
+          return
+        }
+        throw new Error(`HTTP ${response.status}: Failed to fetch emails`)
+      }
       
       const data = await response.json()
       if (data.success) {
@@ -56,7 +69,11 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
         throw new Error(data.error || 'Failed to fetch emails')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch emails')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Request timeout - please check your connection')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to fetch emails')
+      }
     } finally {
       setLoading(false)
     }
