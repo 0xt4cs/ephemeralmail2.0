@@ -7,51 +7,57 @@ Ephemeral email (tempmail) built with Next.js 15, Prisma and SQLite. Generate th
 - Prisma ORM + SQLite
 - Zod validation, sanitize-html, token-bucket rate limiting
 
-## Local setup
-1) Install
+## Local Development
 ```bash
+# Install dependencies
 npm ci
-```
-2) Env (.env or .env.local)
-See `.env.example`.
-3) DB + run
-```bash
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Set up database and start
 npx prisma generate
 npx prisma db push
 npm run dev
 ```
 Open http://localhost:8989
 
-## Production (Ubuntu 22.04)
+## Production Deployment
 ```bash
+# Build and start
 npm ci && npx prisma generate && npx prisma db push
 npm run build
 npm run start
 ```
-Set env vars on server (don’t commit .env). Put behind Nginx + TLS. Health: `GET /api/v1/health`.
+Set env vars on server (don't commit .env). Put behind Nginx + TLS. Health: `GET /api/v1/health`.
 
 ## API v1 (JSON)
 All responses: `{ success, data | error }`.
 
-- Generate email
+### Generate email
 ```http
 POST /api/v1/generate
 { "fingerprint": "<uuid>", "customEmail": "optionalPrefix" }
 ```
-- List your emails
+
+### List your emails
 ```http
 GET /api/v1/emails?fingerprint=<uuid>&limit=&cursor=
 ```
-- List received (session owned)
+
+### List received (session owned)
 ```http
 GET /api/v1/received?fingerprint=<uuid>&email=<address>&limit=&cursor=
 ```
-- Public (no session) for integrations/OTP
+
+### Public endpoints (no session) for integrations
 ```http
 GET /api/v1/public/emails?email=<address>
 GET /api/v1/public/received?email=<address>&limit=&cursor=
 ```
-- Webhook ingest (requires header `x-webhook-secret`)
+
+### Webhook ingest (requires header `x-webhook-secret`)
 ```http
 POST /api/v1/received
 ```
