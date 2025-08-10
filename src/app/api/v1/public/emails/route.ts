@@ -22,7 +22,20 @@ export async function GET(req: NextRequest) {
       select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
     })
     if (!row) return errorJson(404, 'Email not found')
-    return okJson(row, { 'Cache-Control': 'public, max-age=15' })
+    
+    return okJson({
+      success: true,
+      data: {
+        id: row.id,
+        emailAddress: row.emailAddress,
+        createdAt: row.createdAt.toISOString(),
+        expiresAt: row.expiresAt.toISOString(),
+        isActive: row.isActive
+      },
+      meta: {
+        timestamp: new Date().toISOString()
+      }
+    }, { 'Cache-Control': 'public, max-age=15' })
   } catch (e) {
     console.error('Error public email get:', e)
     return errorJson(500, 'Internal server error')

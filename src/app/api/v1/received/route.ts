@@ -46,9 +46,26 @@ export async function GET(request: NextRequest) {
       select: { id: true, fromAddress: true, subject: true, bodyHtml: true, bodyText: true, headers: true, attachments: true, receivedAt: true },
     })
     const nextCursor = messages.length > limit ? messages[limit].id : undefined
-    const page = messages.slice(0, limit)
+    const page = messages.slice(0, limit).map(message => ({
+      id: message.id,
+      fromAddress: message.fromAddress,
+      subject: message.subject,
+      bodyHtml: message.bodyHtml,
+      bodyText: message.bodyText,
+      headers: message.headers ? JSON.parse(message.headers) : {},
+      attachments: message.attachments ? JSON.parse(message.attachments) : [],
+      receivedAt: message.receivedAt.toISOString()
+    }))
 
-    return okJson({ items: page, nextCursor }, {
+    return okJson({ 
+      success: true,
+      data: { items: page, nextCursor },
+      meta: {
+        total: page.length,
+        email: email || 'all',
+        timestamp: new Date().toISOString()
+      }
+    }, {
       'Cache-Control': 'private, max-age=5',
     })
   } catch (e) {
@@ -98,10 +115,23 @@ export async function POST(request: NextRequest) {
         messageId,
         attachments: attachments ? JSON.stringify(attachments) : null,
       },
-      select: { id: true, emailId: true },
+      select: { id: true, emailId: true, fromAddress: true, subject: true, receivedAt: true },
     })
 
-    return okJson(receivedEmail)
+    return okJson({
+      success: true,
+      data: {
+        id: receivedEmail.id,
+        emailId: receivedEmail.emailId,
+        fromAddress: receivedEmail.fromAddress,
+        subject: receivedEmail.subject,
+        receivedAt: receivedEmail.receivedAt.toISOString()
+      },
+      message: 'Email received successfully',
+      meta: {
+        timestamp: new Date().toISOString()
+      }
+    })
   } catch (e) {
     console.error('Error creating received email v1:', e)
     return errorJson(500, 'Internal server error')

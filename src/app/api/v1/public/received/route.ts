@@ -45,9 +45,26 @@ export async function GET(req: NextRequest) {
       },
     })
     const nextCursor = messages.length > limit ? messages[limit].id : undefined
-    const items = messages.slice(0, limit)
+    const items = messages.slice(0, limit).map(message => ({
+      id: message.id,
+      fromAddress: message.fromAddress,
+      subject: message.subject,
+      bodyHtml: message.bodyHtml,
+      bodyText: message.bodyText,
+      headers: message.headers ? JSON.parse(message.headers) : {},
+      attachments: message.attachments ? JSON.parse(message.attachments) : [],
+      receivedAt: message.receivedAt.toISOString()
+    }))
 
-    return okJson({ items, nextCursor }, { 'Cache-Control': 'public, max-age=5' })
+    return okJson({ 
+      success: true,
+      data: { items, nextCursor },
+      meta: {
+        total: items.length,
+        email: email,
+        timestamp: new Date().toISOString()
+      }
+    }, { 'Cache-Control': 'public, max-age=5' })
   } catch (e) {
     console.error('Error public received list:', e)
     return errorJson(500, 'Internal server error')
