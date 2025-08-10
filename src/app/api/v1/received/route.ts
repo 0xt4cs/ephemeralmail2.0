@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       bodyHtml: message.bodyHtml,
       bodyText: message.bodyText,
       headers: message.headers ? JSON.parse(message.headers) : {},
-      attachments: message.attachments ? JSON.parse(message.attachments) : [],
+      attachments: message.attachments ? JSON.parse(message.attachments).map((att: Record<string, unknown>) => ({ ...att, emailId: message.id })) : [],
       receivedAt: message.receivedAt.toISOString()
     }))
 

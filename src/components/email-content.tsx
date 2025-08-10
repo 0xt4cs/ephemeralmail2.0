@@ -1,15 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   Download, 
   Mail, 
   Calendar, 
   User, 
-  Eye,
-  EyeOff,
   Paperclip
 } from 'lucide-react'
 import { handleAttachmentDownload, getFileIcon, formatFileSize } from '@/lib/attachment-handler'
@@ -32,7 +29,6 @@ interface EmailContentProps {
 }
 
 export function EmailContent({ selected }: EmailContentProps) {
-  const [showHeaders, setShowHeaders] = useState(false)
 
   if (!selected) {
     return (
@@ -77,29 +73,7 @@ export function EmailContent({ selected }: EmailContentProps) {
             <span>{new Date(selected.receivedAt).toLocaleString()}</span>
           </div>
           
-          {/* Headers Toggle Button - Now under the date */}
-          {selected.headers && (
-            <div className="pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowHeaders(!showHeaders)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {showHeaders ? (
-                  <>
-                    <EyeOff className="h-4 w-4 mr-2" />
-                    Hide Headers
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Show Headers
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+
         </div>
 
         {/* Attachments */}
@@ -142,28 +116,7 @@ export function EmailContent({ selected }: EmailContentProps) {
         )}
       </div>
 
-      {/* Headers (Collapsible) */}
-      {showHeaders && selected.headers && (
-        <div className="border-b border-border bg-muted/50">
-          <Card className="border-0 rounded-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Email Headers</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2 text-xs">
-                {Object.entries(selected.headers).map(([key, value]) => (
-                  <div key={key} className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                    <span className="font-mono font-medium text-muted-foreground min-w-[120px]">
-                      {key}:
-                    </span>
-                    <span className="font-mono break-all">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+
 
       {/* Email Body */}
       <div className="flex-1 overflow-auto">

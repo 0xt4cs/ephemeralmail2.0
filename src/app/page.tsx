@@ -30,6 +30,7 @@ export default function Home() {
   const [selectedMessage, setSelectedMessage] = useState<ReceivedEmail | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidePanelView, setSidePanelView] = useState<'emails' | 'messages'>('emails')
+  const [refreshKey, setRefreshKey] = useState<number>(0)
 
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
@@ -51,6 +52,7 @@ export default function Home() {
     setFingerprint(newFingerprint)
     setSelectedEmailAddress('')
     setSelectedMessage(null)
+    setRefreshKey(prev => prev + 1) // Force re-render of components
   }
 
   const handleSelectEmail = (address: string) => {
@@ -155,6 +157,7 @@ export default function Home() {
                   {sidePanelView === 'emails' && (
                     <div className="h-full">
                       <EmailList
+                        key={`mobile-email-list-${refreshKey}`}
                         fingerprint={fingerprint}
                         selectedEmailAddress={selectedEmailAddress}
                         onSelectEmail={handleSelectEmail}
@@ -181,6 +184,7 @@ export default function Home() {
                       <div className="h-[calc(100%-4rem)]">
                         {selectedEmailAddress ? (
                           <ReceivedEmails
+                            key={`mobile-received-emails-${refreshKey}`}
                             fingerprint={fingerprint}
                             selectedEmailAddress={selectedEmailAddress}
                             selectedMessage={selectedMessage}
@@ -224,16 +228,18 @@ export default function Home() {
           {/* Left: Generated Emails (15%) */}
           <div className="w-[15%] border-r border-border">
             <EmailList
+              key={`email-list-${refreshKey}`}
               fingerprint={fingerprint}
               selectedEmailAddress={selectedEmailAddress}
               onSelectEmail={handleSelectEmail}
             />
           </div>
 
-          {/* Middle: Emails Received (15%) */}
-          <div className="w-[15%] border-r border-border">
+          {/* Middle: Emails Received (20%) */}
+          <div className="w-[20%] border-r border-border">
             {selectedEmailAddress ? (
               <ReceivedEmails
+                key={`received-emails-${refreshKey}`}
                 fingerprint={fingerprint}
                 selectedEmailAddress={selectedEmailAddress}
                 selectedMessage={selectedMessage}
@@ -248,8 +254,8 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right: Email Content (70%) */}
-          <div className="w-[70%]">
+          {/* Right: Email Content (65%) */}
+          <div className="w-[65%]">
             {selectedMessage ? (
               <EmailContent selected={selectedMessage} />
             ) : (
