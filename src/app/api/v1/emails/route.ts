@@ -36,17 +36,11 @@ export async function GET(request: NextRequest) {
       })
       if (!email) return errorJson(404, 'Email not found')
       return okJson({
-        success: true,
-        data: {
-          id: email.id,
-          address: email.emailAddress,
-          createdAt: email.createdAt,
-          expiresAt: email.expiresAt,
-          isActive: email.isActive
-        },
-        meta: {
-          timestamp: new Date().toISOString()
-        }
+        id: email.id,
+        address: email.emailAddress,
+        createdAt: email.createdAt,
+        expiresAt: email.expiresAt,
+        isActive: email.isActive
       })
     }
 
@@ -68,8 +62,8 @@ export async function GET(request: NextRequest) {
     }))
 
     return okJson({ 
-      success: true,
-      data: { items: page, nextCursor },
+      items: page, 
+      nextCursor,
       meta: {
         total: page.length,
         fingerprint: fingerprint,
@@ -108,11 +102,7 @@ export async function DELETE(request: NextRequest) {
     await prisma.email.delete({ where: { id } })
     await prisma.session.update({ where: { id: session.id }, data: { emailCount: { decrement: 1 } } })
     return okJson({ 
-      success: true,
-      message: 'Email deleted successfully',
-      meta: {
-        timestamp: new Date().toISOString()
-      }
+      message: 'Email deleted successfully'
     })
   } catch (e) {
     console.error('Error deleting email v1:', e)

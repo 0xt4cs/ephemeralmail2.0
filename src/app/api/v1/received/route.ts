@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
     }))
 
     return okJson({ 
-      success: true,
-      data: { items: page, nextCursor },
+      items: page, 
+      nextCursor,
       meta: {
         total: page.length,
         email: email || 'all',
@@ -119,18 +119,12 @@ export async function POST(request: NextRequest) {
     })
 
     return okJson({
-      success: true,
-      data: {
-        id: receivedEmail.id,
-        emailId: receivedEmail.emailId,
-        fromAddress: receivedEmail.fromAddress,
-        subject: receivedEmail.subject,
-        receivedAt: receivedEmail.receivedAt.toISOString()
-      },
-      message: 'Email received successfully',
-      meta: {
-        timestamp: new Date().toISOString()
-      }
+      id: receivedEmail.id,
+      emailId: receivedEmail.emailId,
+      fromAddress: receivedEmail.fromAddress,
+      subject: receivedEmail.subject,
+      receivedAt: receivedEmail.receivedAt.toISOString(),
+      message: 'Email received successfully'
     })
   } catch (e) {
     console.error('Error creating received email v1:', e)

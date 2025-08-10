@@ -47,7 +47,9 @@ export default function Home() {
   }, [])
 
   const handleRefresh = () => {
-    setFingerprint(prev => prev)
+    // Force a refresh by updating the fingerprint
+    const newFingerprint = getOrCreateClientFingerprint()
+    setFingerprint(newFingerprint)
   }
 
   const handleSelectEmail = (address: string) => {

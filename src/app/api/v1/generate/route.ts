@@ -45,18 +45,11 @@ export async function POST(request: NextRequest) {
       // If the existing email belongs to this session, return it to avoid exposing others
       if (existingEmail.sessionId === session.id) {
         return okJson({ 
-          success: true,
-          data: {
-            id: existingEmail.id, 
-            address: existingEmail.emailAddress, 
-            createdAt: existingEmail.createdAt, 
-            expiresAt: existingEmail.expiresAt, 
-            isActive: existingEmail.isActive 
-          },
-          message: 'Email already exists',
-          meta: {
-            timestamp: new Date().toISOString()
-          }
+          id: existingEmail.id, 
+          address: existingEmail.emailAddress, 
+          createdAt: existingEmail.createdAt, 
+          expiresAt: existingEmail.expiresAt, 
+          isActive: existingEmail.isActive 
         })
       }
       return errorJson(409, 'Email address already exists')
@@ -75,18 +68,11 @@ export async function POST(request: NextRequest) {
     await prisma.session.update({ where: { id: session.id }, data: { emailCount: session.emailCount + 1 } })
 
     return okJson({
-      success: true,
-      data: {
-        id: email.id,
-        address: email.emailAddress,
-        createdAt: email.createdAt,
-        expiresAt: email.expiresAt,
-        isActive: email.isActive
-      },
-      message: 'Email generated successfully',
-      meta: {
-        timestamp: new Date().toISOString()
-      }
+      id: email.id,
+      address: email.emailAddress,
+      createdAt: email.createdAt,
+      expiresAt: email.expiresAt,
+      isActive: email.isActive
     })
   } catch (error) {
     console.error('Error generating email:', error)
