@@ -63,7 +63,6 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Mobile Menu Styles */
   .mobile-menu-backdrop {
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
@@ -78,17 +77,16 @@
     transform: translateX(0) !important;
   }
 
-  /* Ensure the menu is visible when open */
   .mobile-menu-slide[class*="open"] {
     transform: translateX(0) !important;
   }
 
-  /* Prevent body scroll when menu is open */
+
   body.menu-open {
     overflow: hidden;
   }
 
-  /* Responsive typography */
+
   html {
     font-size: 16px;
   }
@@ -105,7 +103,7 @@
     }
   }
 
-  /* Theme-aware text colors */
+
   .text-theme-adaptive {
     @apply text-foreground;
   }
@@ -114,7 +112,7 @@
     @apply text-muted-foreground;
   }
 
-  /* Responsive line heights */
+
   .line-height-tight {
     line-height: 1.2;
   }
@@ -127,7 +125,7 @@
     line-height: 1.75;
   }
 
-  /* Responsive spacing */
+
   .space-responsive {
     @apply space-y-2 sm:space-y-3 lg:space-y-4;
   }
@@ -144,7 +142,7 @@
     @apply py-2 sm:py-3 lg:py-4;
   }
 
-  /* Responsive text sizes */
+
   .text-responsive-xs {
     @apply text-xs sm:text-sm;
   }
@@ -165,7 +163,7 @@
     @apply text-xl sm:text-2xl;
   }
 
-  /* Responsive font weights */
+
   .font-responsive-normal {
     @apply font-normal sm:font-medium;
   }
@@ -178,17 +176,17 @@
     @apply font-semibold sm:font-bold;
   }
 
-  /* Theme transitions */
+
   * {
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Focus styles for accessibility */
+
   .focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Custom scrollbar for webkit browsers */
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -206,7 +204,7 @@
     @apply bg-muted-foreground/50;
   }
 
-  /* Print styles */
+
   @media print {
     .no-print {
       display: none !important;
@@ -217,7 +215,7 @@
     }
   }
 
-  /* High contrast mode support */
+
   @media (prefers-contrast: high) {
     :root {
       --border: 0 0% 0%;
@@ -225,7 +223,7 @@
     }
   }
 
-  /* Reduced motion support */
+
   @media (prefers-reduced-motion: reduce) {
     * {
       animation-duration: 0.01ms !important;
@@ -236,7 +234,7 @@
 }
 
 @layer components {
-  /* Custom component styles */
+
   .btn-responsive {
     @apply px-3 py-2 text-sm sm:px-4 sm:py-2 sm:text-base;
   }
@@ -249,7 +247,7 @@
     @apply h-9 px-3 text-sm sm:h-10 sm:px-3 sm:text-base;
   }
 
-  /* Sidebar responsive styles */
+
   .sidebar-container {
     @apply fixed inset-y-0 left-0 z-50 w-80 bg-background border-r border-border transform transition-transform duration-300 ease-in-out;
   }
@@ -270,14 +268,85 @@
     @apply fixed inset-0 bg-black/50 z-40;
   }
 
-  /* Email content styles */
   .email-content {
     @apply prose prose-sm max-w-none dark:prose-invert;
-    /* Enhanced HTML email support */
     word-wrap: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
     line-height: 1.6;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+    
+    color: hsl(var(--foreground));
+    background: transparent;
+    
+    div, p, span, a, img, table, tr, td, th {
+      max-width: 100% !important;
+    }
+    
+    img {
+      height: auto !important;
+      max-width: 100% !important;
+      width: auto !important;
+    }
+    
+    table {
+      border-collapse: collapse !important;
+      mso-table-lspace: 0pt !important;
+      mso-table-rspace: 0pt !important;
+    }
+    
+    p, div, span, td, th {
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+    }
+    
+    [data-ogsc] {
+      background-color: transparent !important;
+    }
+    
+    .gmail_default {
+      font-family: inherit !important;
+    }
+    
+    .apple-mail {
+      font-family: inherit !important;
+    }
+    
+    .email-container,
+    .email-wrapper,
+    .email-content {
+      max-width: 100% !important;
+      width: 100% !important;
+    }
+    
+    img[width],
+    img[height] {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+    
+    [bgcolor] {
+      background-color: inherit !important;
+    }
+    
+    [color] {
+      color: inherit !important;
+    }
   }
 
   .email-content h1,
@@ -287,42 +356,69 @@
   .email-content h5,
   .email-content h6 {
     @apply text-foreground font-semibold;
+    margin: 1em 0 0.5em 0;
+    line-height: 1.2;
   }
+
+  .email-content h1 { font-size: 1.8em; }
+  .email-content h2 { font-size: 1.5em; }
+  .email-content h3 { font-size: 1.3em; }
+  .email-content h4 { font-size: 1.1em; }
+  .email-content h5 { font-size: 1em; }
+  .email-content h6 { font-size: 0.9em; }
 
   .email-content p {
     @apply text-foreground;
+    margin: 0 0 1em 0;
+    line-height: 1.6;
   }
 
   .email-content a {
     @apply text-primary hover:text-primary/80 underline;
+    text-decoration: underline;
+    word-break: break-word;
   }
 
   .email-content blockquote {
     @apply border-l-4 border-muted-foreground/30 pl-4 italic;
+    margin: 1em 0;
+    padding: 0.5em 0;
   }
 
   .email-content code {
     @apply bg-muted px-1 py-0.5 rounded text-sm font-mono;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   }
 
   .email-content pre {
     @apply bg-muted p-4 rounded overflow-x-auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
   }
 
   .email-content table {
     @apply w-full border-collapse border border-border;
+    margin: 1em 0;
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
   }
 
   .email-content th,
   .email-content td {
     @apply border border-border px-3 py-2 text-left;
+    word-wrap: break-word;
+    max-width: 200px;
+    vertical-align: top;
   }
 
   .email-content th {
     @apply bg-muted font-semibold;
+    white-space: nowrap;
   }
 
-  /* Enhanced email content styles */
+
   .email-content img {
     @apply max-w-full h-auto rounded-md shadow-sm;
   }
@@ -350,7 +446,6 @@
     @apply border-t border-border my-4;
   }
 
-  /* Enhanced email-specific styles */
   .email-content .email-header {
     @apply bg-muted/50 p-4 rounded-md mb-4;
     border: 1px solid hsl(var(--border));
@@ -364,50 +459,97 @@
     @apply mt-4 pt-4 border-t border-border;
   }
 
-  /* Responsive email content */
-  .email-content .email-responsive {
-    @apply w-full max-w-full;
+  .email-content div {
+    margin: 0;
+    padding: 0;
   }
 
-  .email-content .email-responsive img {
-    @apply max-w-full h-auto;
+  .email-content span {
+    display: inline;
   }
 
-  .email-content .email-responsive table {
-    @apply min-w-full;
+  .email-content ul,
+  .email-content ol {
+    @apply mb-3 pl-6;
+    margin: 1em 0;
+    padding-left: 2em;
   }
 
-  /* Better table handling for emails */
-  .email-content table {
-    @apply w-full border-collapse border border-border my-4;
+  .email-content li {
+    @apply mb-1;
+    margin: 0.25em 0;
+  }
+
+  .email-content strong,
+  .email-content b {
+    @apply font-semibold;
+    font-weight: 600;
+  }
+
+  .email-content em,
+  .email-content i {
+    @apply italic;
+    font-style: italic;
+  }
+
+  .email-content hr {
+    @apply border-t border-border my-4;
+    border: none;
+    border-top: 1px solid hsl(var(--border));
+    margin: 2em 0;
+  }
+
+  .email-content img {
+    @apply max-w-full h-auto rounded-md shadow-sm;
     max-width: 100%;
-    overflow-x: auto;
-    display: block;
+    height: auto;
+    border: none;
+    outline: none;
+    text-decoration: none;
+    -ms-interpolation-mode: bicubic;
   }
 
-  .email-content th,
-  .email-content td {
-    @apply border border-border px-3 py-2 text-left;
-    word-wrap: break-word;
-    max-width: 200px;
+  .email-content .email-container {
+    max-width: 100%;
+    margin: 0 auto;
   }
 
-  /* Responsive email content */
-  @media (max-width: 640px) {
-    .email-content {
-      @apply text-sm;
-    }
-    
-    .email-content img {
-      @apply max-w-full;
-    }
-    
-    .email-content table {
-      @apply text-xs;
-    }
+  .email-content .email-wrapper {
+    padding: 1em;
   }
 
-  /* Responsive grid layouts */
+  .email-content .btn,
+  .email-content .button {
+    display: inline-block;
+    padding: 0.75em 1.5em;
+    margin: 0.5em 0;
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    text-decoration: none;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+  }
+
+  .email-content .btn:hover,
+  .email-content .button:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+
+  .email-content input,
+  .email-content textarea,
+  .email-content select {
+    border: 1px solid hsl(var(--border));
+    border-radius: 0.375rem;
+    padding: 0.5em;
+    font-size: 1em;
+    font-family: inherit;
+  }
+
+
+
   .grid-responsive {
     @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
   }
@@ -416,7 +558,6 @@
     @apply grid grid-cols-1 lg:grid-cols-2 gap-4;
   }
 
-  /* Responsive flex layouts */
   .flex-responsive {
     @apply flex flex-col sm:flex-row;
   }
@@ -425,7 +566,6 @@
     @apply flex flex-col-reverse sm:flex-row;
   }
 
-  /* Mobile-specific improvements */
   @media (max-width: 640px) {
     .mobile-optimized {
       @apply text-sm;
@@ -442,7 +582,6 @@
 }
 
 @layer utilities {
-  /* Custom utilities */
   .text-balance {
     text-wrap: balance;
   }
@@ -472,7 +611,6 @@
     -webkit-line-clamp: 3;
   }
 
-  /* Responsive visibility */
   .visible-mobile {
     @apply block sm:hidden;
   }
@@ -485,22 +623,18 @@
     @apply hidden lg:block;
   }
 
-  /* Responsive positioning */
   .sticky-responsive {
     @apply sticky top-0 z-10;
   }
 
-  /* Responsive shadows */
   .shadow-responsive {
     @apply shadow-sm sm:shadow-md lg:shadow-lg;
   }
 
-  /* Mobile touch improvements */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
 
-  /* Prevent text selection on interactive elements */
   .no-select {
     -webkit-user-select: none;
     -moz-user-select: none;
