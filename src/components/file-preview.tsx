@@ -68,8 +68,7 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
       
       setPreviewUrl(url)
       setShowPreview(true)
-    } catch (error) {
-      console.error('Preview error:', error)
+    } catch {
       // Provide more specific error messages based on file type
       if (previewInfo.previewType === 'pdf') {
         alert('PDF preview is not available in the browser. Please download the file to view it.')
@@ -106,8 +105,8 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-    } catch (error) {
-      console.error('Download error:', error)
+    } catch {
+      // Download failed
     }
   }
 

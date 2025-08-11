@@ -60,8 +60,8 @@ export function getOrCreateClientFingerprint(): string {
     let existing: string | null = null
     try {
       existing = localStorage.getItem(key)
-    } catch (error) {
-      console.warn('localStorage not available, generating new fingerprint:', error)
+    } catch {
+      // localStorage not available
     }
     
     if (existing) {
@@ -81,8 +81,8 @@ export function getOrCreateClientFingerprint(): string {
     
     try {
       localStorage.setItem(key, JSON.stringify(fingerprint))
-    } catch (error) {
-      console.warn('Could not store fingerprint in localStorage:', error)
+    } catch {
+      // Could not store fingerprint in localStorage
     }
     
     return fingerprint.id

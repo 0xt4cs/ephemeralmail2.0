@@ -92,14 +92,12 @@ export function useSSE({
           const message: SSEMessage = JSON.parse(event.data)
           setLastMessage(message)
           onMessage?.(message)
-        } catch (parseError) {
-          console.error('Failed to parse SSE message:', parseError)
+        } catch {
           setError('Failed to parse message')
         }
       }
 
       eventSource.onerror = (event) => {
-        console.error('SSE connection error:', event)
         setIsConnected(false)
         isConnectingRef.current = false
         setError('Connection error')
@@ -107,7 +105,6 @@ export function useSSE({
 
         if (autoReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++
-          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${maxReconnectAttempts})...`)
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
@@ -115,8 +112,7 @@ export function useSSE({
         }
       }
 
-    } catch (error) {
-      console.error('Failed to create SSE connection:', error)
+    } catch {
       setError('Failed to create connection')
       isConnectingRef.current = false
     }

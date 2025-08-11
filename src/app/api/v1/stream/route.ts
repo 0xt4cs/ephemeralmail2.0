@@ -25,18 +25,31 @@ export async function GET(request: NextRequest) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET',
-        'Access-Control-Allow-Headers': 'Cache-Control'
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Cache-Control, x-fingerprint',
+        'Access-Control-Max-Age': '86400'
       }
     })
 
-  } catch (error) {
-    console.error('SSE connection error:', error)
+  } catch {
     return new Response('Internal server error', { status: 500 })
   }
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Cache-Control, x-fingerprint',
+      'Access-Control-Max-Age': '86400'
+    }
+  })
 }
 
 // sseManager is available for internal use but not exported from API routes

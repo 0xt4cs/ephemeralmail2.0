@@ -53,7 +53,6 @@ class SSEManager {
 
     for (const [id, connection] of this.connections.entries()) {
       if (now - connection.lastPing > timeout) {
-        console.log(`Cleaning up inactive connection: ${id}`)
         this.connections.delete(id)
       }
     }
@@ -74,12 +73,14 @@ class SSEManager {
 
         this.connections.set(connectionId, connection)
 
+        // Send initial connection message
         this.sendMessage(connectionId, {
           type: 'connected',
           timestamp: new Date().toISOString(),
           message: 'SSE connection established'
         })
 
+        // Send ping every 30 seconds to keep connection alive
         const pingInterval = setInterval(() => {
           this.sendMessage(connectionId, {
             type: 'ping',
@@ -92,7 +93,15 @@ class SSEManager {
           }
         }, 30000)
 
+        // Handle client disconnect
         request.signal.addEventListener('abort', () => {
+          clearInterval(pingInterval)
+          this.connections.delete(connectionId)
+          controller.close()
+        })
+
+        // Handle stream close
+        request.signal.addEventListener('close', () => {
           clearInterval(pingInterval)
           this.connections.delete(connectionId)
           controller.close()
@@ -114,8 +123,8 @@ class SSEManager {
       const messageData = encoder.encode(`data: ${JSON.stringify(message)}\n\n`)
       connection.controller.enqueue(messageData)
       return true
-    } catch (error) {
-      console.error('Failed to send message to connection:', connectionId, error)
+    } catch {
+      // Connection is broken, remove it
       this.connections.delete(connectionId)
       return false
     }
@@ -137,7 +146,6 @@ class SSEManager {
       }
     }
 
-    console.log(`Broadcasted to ${sentCount} connections for fingerprint: ${fingerprint}`)
     return sentCount
   }
 
@@ -155,7 +163,6 @@ class SSEManager {
       }
     }
 
-    console.log(`Broadcasted to ${sentCount} total connections`)
     return sentCount
   }
 
@@ -174,8 +181,8 @@ class SSEManager {
     if (connection) {
       try {
         connection.controller.close()
-      } catch (error) {
-        console.error('Error closing connection:', error)
+      } catch {
+        // Connection already closed
       }
       this.connections.delete(connectionId)
       return true

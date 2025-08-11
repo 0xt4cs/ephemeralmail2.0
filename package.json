@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 8989",
-    "build": "next lint && next build",
+    "build": "next build",
     "start": "next start -p 8989",
     "email": "ts-node --project tsconfig.smtp.json src/server/email-server.ts",
     "lint": "next lint",

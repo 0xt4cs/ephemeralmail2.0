@@ -5,11 +5,9 @@ import { EmailList } from '@/components/email-list'
 import { ReceivedEmails } from '@/components/received-emails'
 import { EmailContent } from '@/components/email-content'
 import { Header } from '@/components/header'
-import { RealtimeNotifications } from '@/components/realtime-notifications'
 import { getOrCreateClientFingerprint } from '@/lib/utils'
 import { X, Menu, ArrowLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { EmailNotificationData } from '@/hooks/use-sse'
 
 interface ReceivedEmail {
   id: string
@@ -64,13 +62,7 @@ export default function Home() {
     setRefreshKey(prev => prev + 1)
   }
 
-  const handleNewEmail = (emailData: EmailNotificationData) => {
-    setRefreshKey(prev => prev + 1)
-    
-    if (emailData?.emailId) {
-      console.log('New email received:', emailData)
-    }
-  }
+
 
   const handleSelectEmail = (address: string) => {
     setSelectedEmailAddress(address)
@@ -115,14 +107,7 @@ export default function Home() {
         onMenuToggle={toggleMobileMenu} 
       />
       
-      {/* Real-time Notifications */}
-      {fingerprint && (
-        <RealtimeNotifications
-          fingerprint={fingerprint}
-          onNewEmail={handleNewEmail}
-          className="fixed top-20 right-4 z-40"
-        />
-      )}
+
       
       {/* Mobile Layout */}
       <div className="lg:hidden">
