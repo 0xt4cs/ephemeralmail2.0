@@ -58,93 +58,247 @@ Developed by [@0xt4cs](https://github.com/0xt4cs)
 
 Base URL: `YOUR_APP_URL/api/v1`
 
-All API responses are JSON: `{ success: boolean, data: { ... }, message?: string, meta?: { ... } }`
+### Response Format
+All API responses follow this JSON structure:
+```json
+{
+  "success": boolean,
+  "data": { ... },
+  "message": "string",
+  "meta": {
+    "timestamp": "ISO string",
+    "credits": "EphemeralMail by @0xt4cs - https://github.com/0xt4cs"
+  }
+}
+```
 
-### Private API (Requires `x-fingerprint` header)
+## 🔓 Public API (No Authentication Required)
 
-#### Generate Email Address
--   **Endpoint**: `/api/v1/generate`
--   **Method**: `POST`
--   **Body**: `{ "customEmail": "mycustomaddress" }` (optional)
--   **Example Response**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "address": "mycustomaddress@yourdomain.com",
-        "expiresAt": "2025-08-24T12:00:00.000Z"
+**Features:**
+- ✅ No rate limits
+- ✅ No API keys required
+- ✅ CORS enabled for all domains
+- ✅ Instant email generation
+- ✅ Full CRUD operations
+
+### 1. Generate Email Address
+
+**Endpoint:** `POST /api/v1/public/generate`
+
+**Request Body:**
+```json
+{
+  "customEmail": "myusername"  // Optional: custom username
+}
+```
+
+**Example Request:**
+```bash
+curl -X POST https://DOMAIN/v1/public/generate \
+  -H "Content-Type: application/json" \
+  -d '{"customEmail": "testuser123"}'
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "clx1234567890",
+    "address": "testuser123@DOMAIN",
+    "createdAt": "2025-08-11T10:30:00.000Z",
+    "expiresAt": "2025-08-25T10:30:00.000Z",
+    "isActive": true,
+    "generatedBy": "public-api"
+  },
+  "meta": {
+    "timestamp": "2025-08-11T10:30:00.000Z",
+    "credits": "EphemeralMail by @0xt4cs - https://github.com/0xt4cs"
+  }
+}
+```
+
+**Notes:**
+- If `customEmail` is not provided, a random email will be generated
+- Custom emails must contain only letters, numbers, dots, underscores, and hyphens
+- Emails expire after 14 days
+
+### 2. Check Email Existence
+
+**Endpoint:** `GET /api/v1/public/emails`
+
+**Query Parameters:**
+- `email` (required): The email address to check
+
+**Example Request:**
+```bash
+curl "https://DOMAIN/api/v1/public/emails?email=testuser123@DOMAIN"
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "exists": true,
+    "emailAddress": "testuser123@DOMAIN",
+    "isActive": true,
+    "isDeleted": false,
+    "isRecovered": false,
+    "createdAt": "2025-08-11T10:30:00.000Z",
+    "expiresAt": "2025-08-25T10:30:00.000Z"
+  }
+}
+```
+
+### 3. Get Received Emails
+
+**Endpoint:** `GET /api/v1/public/received`
+
+**Query Parameters:**
+- `email` (required): The email address to check for received messages
+
+**Example Request:**
+```bash
+curl "https://DOMAIN/api/v1/public/received?email=testuser123@DOMAIN"
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "clx1234567891",
+        "fromAddress": "sender@example.com",
+        "subject": "Welcome to our service!",
+        "bodyHtml": "<p>Hello! Welcome to our platform.</p>",
+        "bodyText": "Hello! Welcome to our platform.",
+        "headers": { "message-id": "123@example.com" },
+        "attachments": [
+          {
+            "name": "welcome.pdf",
+            "size": 1024000,
+            "type": "application/pdf"
+          }
+        ],
+        "receivedAt": "2025-08-11T11:00:00.000Z"
       }
+    ],
+    "meta": {
+      "total": 1,
+      "email": "testuser123@DOMAIN",
+      "timestamp": "2025-08-11T11:00:00.000Z"
     }
-    ```
+  }
+}
+```
 
-#### Get Generated Emails
--   **Endpoint**: `/api/v1/emails`
--   **Method**: `GET`
--   **Query**: `includeDeleted=true` (optional)
+### 4. Delete Email (Soft Delete)
 
-#### Get Received Messages
--   **Endpoint**: `/api/v1/received`
--   **Method**: `GET`
--   **Query**: `emailAddress=your@email.com`
+**Endpoint:** `DELETE /api/v1/public/emails/delete`
 
-#### Soft Delete Email
--   **Endpoint**: `/api/v1/emails`
--   **Method**: `DELETE`
--   **Body**: `{ "emailAddress": "your@email.com" }`
+**Request Body:**
+```json
+{
+  "emailAddress": "testuser123@DOMAIN"
+}
+```
 
-#### Recover Soft-Deleted Email
--   **Endpoint**: `/api/v1/emails`
--   **Method**: `PATCH`
--   **Body**: `{ "emailAddress": "your@email.com" }`
+**Example Request:**
+```bash
+curl -X DELETE https://DOMAIN/api/v1/public/emails/delete \
+  -H "Content-Type: application/json" \
+  -d '{"emailAddress": "testuser123@DOMAIN"}'
+```
 
-#### Download Attachment
--   **Endpoint**: `/api/v1/attachments/download`
--   **Method**: `POST`
--   **Body**: `{ "emailId": "...", "attachmentName": "..." }`
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Public email soft deleted successfully. It will be permanently deleted after 14 days.",
+    "emailAddress": "testuser123@DOMAIN",
+    "deletedAt": "2025-08-11T12:00:00.000Z"
+  }
+}
+```
 
-### Public API (No Authentication, No Rate Limit)
+### 5. Recover Deleted Email
 
-All public API responses include `"credits": "EphemeralMail by @0xt4cs - https://github.com/0xt4cs"`
+**Endpoint:** `PATCH /api/v1/public/emails/recover`
 
-#### Generate Public Email Address
--   **Endpoint**: `/api/v1/public/generate`
--   **Method**: `POST`
--   **Body**: `{ "customEmail": "publicuser" }` (optional)
--   **Example Response**:
-    ```json
-    {
-      "success": true,
-      "data": {
-        "address": "publicuser@yourdomain.com",
-        "generatedBy": "public-api"
-      }
-    }
-    ```
+**Request Body:**
+```json
+{
+  "emailAddress": "testuser123@DOMAIN"
+}
+```
 
-#### Check Public Email Existence / Get Details
--   **Endpoint**: `/api/v1/public/emails`
--   **Method**: `GET`
--   **Query**: `emailAddress=public@email.com`
+**Example Request:**
+```bash
+curl -X PATCH https://DOMAIN/api/v1/public/emails/recover \
+  -H "Content-Type: application/json" \
+  -d '{"emailAddress": "testuser123@DOMAIN"}'
+```
 
-#### Get Received Messages for Public Email
--   **Endpoint**: `/api/v1/public/received`
--   **Method**: `GET`
--   **Query**: `emailAddress=public@email.com`
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Public email recovered successfully",
+    "emailAddress": "testuser123@DOMAIN",
+    "recoveredAt": "2025-08-11T12:30:00.000Z"
+  }
+}
+```
 
-#### Soft Delete Public Email
--   **Endpoint**: `/api/v1/public/emails/delete`
--   **Method**: `DELETE`
--   **Body**: `{ "emailAddress": "public@email.com" }`
+### Common Error Responses
 
-#### Recover Public Email
--   **Endpoint**: `/api/v1/public/emails/recover`
--   **Method**: `PATCH`
--   **Body**: `{ "emailAddress": "public@email.com" }`
+**400 Bad Request:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": 400,
+    "message": "Invalid request body"
+  }
+}
+```
+
+**404 Not Found:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": 404,
+    "message": "Email not found"
+  }
+}
+```
+
+**409 Conflict:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": 409,
+    "message": "Email address already exists"
+  }
+}
+```
 
 ## 🗑️ Deletion Mechanism
 
-Emails are soft-deleted (marked inactive) and automatically hard-deleted after 14 days. Users can recover soft-deleted emails via frontend or API.
+- **Soft Delete**: Emails are marked as inactive but not permanently removed
+- **Recovery**: Soft-deleted emails can be recovered within 14 days
+- **Hard Delete**: Emails are permanently deleted after 14 days
+- **Public API**: Only emails created via public API can be managed via public API
 
 ## 📄 License
 
-MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2025 0xt4cs
