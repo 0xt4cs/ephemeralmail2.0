@@ -70,7 +70,12 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
       setShowPreview(true)
     } catch (error) {
       console.error('Preview error:', error)
-      alert('Unable to preview this file. Please download it instead.')
+      // Provide more specific error messages based on file type
+      if (previewInfo.previewType === 'pdf') {
+        alert('PDF preview is not available in the browser. Please download the file to view it.')
+      } else {
+        alert('Unable to preview this file. Please download it instead.')
+      }
     }
   }
 
@@ -184,13 +189,23 @@ export function FilePreview({ emailId, attachment, fingerprint, className }: Fil
                   </div>
                 )}
               
-              {previewInfo.previewType === 'pdf' && (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[70vh] border rounded"
-                  title={attachment.name}
-                />
-              )}
+                {previewInfo.previewType === 'pdf' && (
+                 <div className="w-full h-[70vh] border rounded bg-muted flex items-center justify-center">
+                   <div className="text-center">
+                     <p className="text-sm text-muted-foreground mb-4">
+                       PDF preview is not available in the browser for security reasons.
+                     </p>
+                     <Button
+                       variant="outline"
+                       onClick={handleDownload}
+                       className="flex items-center gap-2"
+                     >
+                       <Download className="h-4 w-4" />
+                       Download PDF
+                     </Button>
+                   </div>
+                 </div>
+               )}
               
                              {previewInfo.previewType === 'text' && (
                  <div className="bg-muted p-4 rounded text-sm overflow-auto max-h-[70vh]">

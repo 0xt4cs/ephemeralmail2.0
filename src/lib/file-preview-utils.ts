@@ -81,6 +81,21 @@ export const PREVIEWABLE_TYPES = {
   'application/vnd.ms-powerpoint': { canPreview: false, previewType: 'none' as const, maxSize: undefined },
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': { canPreview: false, previewType: 'none' as const, maxSize: undefined },
   
+  // Additional image formats
+  'image/heic': { canPreview: true, previewType: 'image' as const, maxSize: 10 * 1024 * 1024 },
+  'image/heif': { canPreview: true, previewType: 'image' as const, maxSize: 10 * 1024 * 1024 },
+  'image/avif': { canPreview: true, previewType: 'image' as const, maxSize: 10 * 1024 * 1024 },
+  
+  // Additional text formats
+  'text/rtf': { canPreview: true, previewType: 'text' as const, maxSize: 1 * 1024 * 1024 },
+  'text/x-log': { canPreview: true, previewType: 'text' as const, maxSize: 1 * 1024 * 1024 },
+  'text/x-shellscript': { canPreview: true, previewType: 'text' as const, maxSize: 1 * 1024 * 1024 },
+  
+  // Additional code formats
+  'application/x-yaml': { canPreview: true, previewType: 'code' as const, maxSize: 1 * 1024 * 1024 },
+  'application/x-toml': { canPreview: true, previewType: 'code' as const, maxSize: 1 * 1024 * 1024 },
+  'application/x-ini': { canPreview: true, previewType: 'code' as const, maxSize: 1 * 1024 * 1024 },
+  
   // Archives (no preview)
   'application/zip': { canPreview: false, previewType: 'none' as const, maxSize: undefined },
   'application/x-rar': { canPreview: false, previewType: 'none' as const, maxSize: undefined },
@@ -106,9 +121,14 @@ export const EXTENSION_MIME_MAP: Record<string, string> = {
   'bmp': 'image/bmp',
   'tiff': 'image/tiff',
   'tif': 'image/tiff',
+  'heic': 'image/heic',
+  'heif': 'image/heif',
+  'avif': 'image/avif',
   
   // Documents
   'pdf': 'application/pdf',
+  'rtf': 'text/rtf',
+  'log': 'text/x-log',
   'txt': 'text/plain',
   'html': 'text/html',
   'htm': 'text/html',

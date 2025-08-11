@@ -87,10 +87,12 @@ export function EmailContent({ selected }: EmailContentProps) {
               className="prose prose-sm max-w-none dark:prose-invert email-content"
               dangerouslySetInnerHTML={{ __html: selected.bodyHtml }}
               style={{
-                // Ensure email content is properly styled
                 fontFamily: 'inherit',
                 lineHeight: '1.6',
-                wordWrap: 'break-word'
+                wordWrap: 'break-word',
+                maxWidth: '100%',
+                overflowWrap: 'break-word',
+                pointerEvents: 'auto'
               }}
             />
           </div>

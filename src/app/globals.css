@@ -273,6 +273,11 @@
   /* Email content styles */
   .email-content {
     @apply prose prose-sm max-w-none dark:prose-invert;
+    /* Enhanced HTML email support */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    line-height: 1.6;
   }
 
   .email-content h1,
@@ -343,6 +348,48 @@
 
   .email-content hr {
     @apply border-t border-border my-4;
+  }
+
+  /* Enhanced email-specific styles */
+  .email-content .email-header {
+    @apply bg-muted/50 p-4 rounded-md mb-4;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .email-content .email-footer {
+    @apply text-xs text-muted-foreground mt-4 pt-4 border-t border-border;
+  }
+
+  .email-content .email-signature {
+    @apply mt-4 pt-4 border-t border-border;
+  }
+
+  /* Responsive email content */
+  .email-content .email-responsive {
+    @apply w-full max-w-full;
+  }
+
+  .email-content .email-responsive img {
+    @apply max-w-full h-auto;
+  }
+
+  .email-content .email-responsive table {
+    @apply min-w-full;
+  }
+
+  /* Better table handling for emails */
+  .email-content table {
+    @apply w-full border-collapse border border-border my-4;
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+  }
+
+  .email-content th,
+  .email-content td {
+    @apply border border-border px-3 py-2 text-left;
+    word-wrap: break-word;
+    max-width: 200px;
   }
 
   /* Responsive email content */
