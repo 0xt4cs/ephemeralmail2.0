@@ -28,27 +28,29 @@ export async function GET(request: NextRequest) {
       return errorJson(404, 'Session not found')
     }
 
-    const email = await prisma.email.findFirst({
+    const receivedEmail = await prisma.receivedEmail.findFirst({
       where: {
         id: emailId,
-        OR: [
-          { sessionId: session.id },
-          { sessionId: { startsWith: 'public-' } }
-        ]
+        email: {
+          OR: [
+            {
+              session: {
+                fingerprint: fingerprint
+              }
+            },
+            {
+              sessionId: {
+                startsWith: 'public-'
+              }
+            }
+          ]
+        }
       },
-      select: { id: true }
-    })
-
-    if (!email) {
-      return errorJson(404, 'Email not found')
-    }
-
-    const receivedEmail = await prisma.receivedEmail.findFirst({
-      where: { emailId: email.id },
       select: { attachments: true }
     })
 
     if (!receivedEmail || !receivedEmail.attachments) {
+      console.log('ReceivedEmail not found for:', { emailId, fingerprint })
       return errorJson(404, 'Attachment not found')
     }
 
@@ -67,6 +69,10 @@ export async function GET(request: NextRequest) {
 
     const attachment = attachments.find(a => a.name === attachmentName)
     if (!attachment) {
+      console.log('Attachment not found in list:', { 
+        attachmentName, 
+        availableAttachments: attachments.map(a => a.name) 
+      })
       return errorJson(404, 'Attachment not found')
     }
 
