@@ -40,9 +40,6 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  // Real-time context
-  const { lastMessage } = useRealtimeContext()
-
   const fetchEmails = useCallback(async () => {
     if (!fingerprint || !selectedEmailAddress) return
     
@@ -82,6 +79,13 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       setLoading(false)
     }
   }, [fingerprint, selectedEmailAddress])
+
+  const { lastMessage, registerRefreshCallback } = useRealtimeContext()
+
+  useEffect(() => {
+    const unregister = registerRefreshCallback(fetchEmails)
+    return unregister
+  }, [registerRefreshCallback, fetchEmails])
 
   useEffect(() => {
     if (selectedEmailAddress) {

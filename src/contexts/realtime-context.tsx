@@ -24,6 +24,11 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
   const [currentProgress, setCurrentProgress] = useState<ProgressData | null>(null)
   const [refreshCallbacks, setRefreshCallbacks] = useState<(() => void)[]>([])
 
+  const refreshAll = useCallback(() => {
+    console.log('Refreshing all components...')
+    refreshCallbacks.forEach(callback => callback())
+  }, [refreshCallbacks])
+
   const { isConnected, connectionType, lastMessage, sendHeartbeat } = useRealtime({
     fingerprint,
     onMessage: (message) => {
@@ -59,11 +64,6 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
       console.error('Realtime connection error:', error)
     }
   })
-
-  const refreshAll = useCallback(() => {
-    console.log('Refreshing all components...')
-    refreshCallbacks.forEach(callback => callback())
-  }, [refreshCallbacks])
 
   const registerRefreshCallback = (callback: () => void) => {
     setRefreshCallbacks(prev => [...prev, callback])
