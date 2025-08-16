@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       return errorJson(429, 'Email limit reached (10 emails per session)')
     }
 
-    const emailAddress = customEmail ? `${customEmail}@ephmail.whitebooking.com` : generateRandomEmail()
+    const emailAddress = customEmail ? `${customEmail}@whitebooking.com` : generateRandomEmail()
 
     const existingEmail = await prisma.email.findUnique({ where: { emailAddress } })
     if (existingEmail) {

@@ -35,7 +35,7 @@ export function generateRandomEmail(): string {
   const adjective = adjectives[randomInt(adjectives.length)]
   const noun = nouns[randomInt(nouns.length)]
   const number = (100 + randomInt(900)).toString()
-  return `${adjective}${sep}${noun}${number}@epmail.whitebooking.com`
+  return `${adjective}${sep}${noun}${number}@whitebooking.com`
 }
 
 export function formatDate(date: Date): string {
