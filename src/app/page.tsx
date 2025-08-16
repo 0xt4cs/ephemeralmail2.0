@@ -8,6 +8,7 @@ import { Header } from '@/components/header'
 import { getOrCreateClientFingerprint } from '@/lib/utils'
 import { X, Menu, ArrowLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { RealtimeProvider } from '@/contexts/realtime-context'
 
 interface ReceivedEmail {
   id: string
@@ -101,11 +102,12 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header 
-        onRefresh={handleRefresh} 
-        onMenuToggle={toggleMobileMenu} 
-      />
+    <RealtimeProvider fingerprint={fingerprint}>
+      <div className="min-h-screen bg-background">
+        <Header 
+          onRefresh={handleRefresh} 
+          onMenuToggle={toggleMobileMenu} 
+        />
       
 
       
@@ -258,6 +260,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </RealtimeProvider>
   )
 }

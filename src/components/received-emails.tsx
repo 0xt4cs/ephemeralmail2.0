@@ -10,6 +10,7 @@ import {
   Calendar,
   User
 } from 'lucide-react'
+import { useRealtimeContext } from '@/contexts/realtime-context'
 
 interface ReceivedEmail {
   id: string
@@ -38,6 +39,9 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // Real-time context
+  const { lastMessage } = useRealtimeContext()
 
   const fetchEmails = useCallback(async () => {
     if (!fingerprint || !selectedEmailAddress) return
@@ -86,6 +90,28 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       setEmails([])
     }
   }, [selectedEmailAddress, fetchEmails])
+
+  // Handle real-time updates
+  useEffect(() => {
+    if (lastMessage?.type === 'email_received' && selectedEmailAddress) {
+      // Show subtle notification
+      const emailData = lastMessage.data as { fromAddress?: string }
+      const notification = document.createElement('div')
+      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
+      notification.textContent = `New email from ${emailData?.fromAddress || 'someone'}`
+      document.body.appendChild(notification)
+      
+      // Remove notification after 3 seconds
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+        }
+      }, 3000)
+      
+      // Refresh received emails when new email is received
+      fetchEmails()
+    }
+  }, [lastMessage, selectedEmailAddress, fetchEmails])
 
   const filteredEmails = emails.filter(email => 
     email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||

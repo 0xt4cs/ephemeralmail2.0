@@ -13,8 +13,8 @@ import {
   Check
 } from 'lucide-react'
 import { retryRequest } from '@/lib/connectivity-utils'
-import { useRealtime, ProgressData } from '@/hooks/use-realtime'
 import { ProgressIndicator } from '@/components/progress-indicator'
+import { useRealtimeContext } from '@/contexts/realtime-context'
 
 interface Email {
   id: string
@@ -35,24 +35,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [customEmail, setCustomEmail] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [currentProgress, setCurrentProgress] = useState<ProgressData | null>(null)
-
-  // Real-time connection
-  const { isConnected, connectionType, sendHeartbeat } = useRealtime({
-    fingerprint,
-    onMessage: (message) => {
-      if (message.type === 'email_received') {
-        // Refresh emails when new email is received
-        fetchEmails()
-      }
-    },
-    onProgress: (progress) => {
-      setCurrentProgress(progress)
-    }
-  })
-
-  // Helper function for retrying failed requests
-    // Import retryRequest from connectivity-utils
+  const { currentProgress, sendHeartbeat } = useRealtimeContext() 
 
   const fetchEmails = useCallback(async () => {
     if (!fingerprint) return
@@ -126,6 +109,18 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       
       const data = await response.json()
       if (data.success) {
+        // Show success notification
+        const notification = document.createElement('div')
+        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
+        notification.textContent = `Email generated: ${data.data.address}`
+        document.body.appendChild(notification)
+        
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification)
+          }
+        }, 3000)
+        
         await fetchEmails()
         if (data.data.address) {
           onSelectEmail(data.data.address)
@@ -250,17 +245,10 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       <ProgressIndicator 
         progress={currentProgress} 
         onComplete={() => {
-          setCurrentProgress(null)
           fetchEmails() // Refresh emails after completion
         }}
       />
 
-      {/* Connection Status */}
-      {!isConnected && (
-        <div className="p-2 mb-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800 dark:bg-yellow-950/20 dark:border-yellow-800 dark:text-yellow-200">
-          Using {connectionType === 'polling' ? 'polling' : 'fallback'} connection
-        </div>
-      )}
 
       {/* Email List */}
       <div className="flex-1 overflow-auto">

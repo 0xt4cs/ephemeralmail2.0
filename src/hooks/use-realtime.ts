@@ -63,7 +63,7 @@ export function useRealtime({
   onError,
   onProgress,
   autoReconnect = true,
-  reconnectInterval = 5000,
+  reconnectInterval = 5000, // eslint-disable-line @typescript-eslint/no-unused-vars
   maxReconnectAttempts = 5,
   pollingInterval = 3000,
   sseTimeout = 30000
@@ -81,6 +81,50 @@ export function useRealtime({
   const lastPollTimeRef = useRef(0)
   const sseTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Polling fallback
+  const fallbackToPolling = useCallback(() => {
+    if (connectionType === 'polling') return
+    
+    console.log('Starting polling fallback')
+    setConnectionType('polling')
+    setIsConnected(true)
+    setError(null)
+    
+    const poll = async () => {
+      try {
+        console.log('Polling for updates...')
+        const response = await fetch(`/api/v1/stream/poll?fingerprint=${encodeURIComponent(fingerprint)}&lastUpdate=${lastPollTimeRef.current}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(10000)
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.data) {
+            const message: SSEMessage = data.data
+            setLastMessage(message)
+            
+            if (message.type === 'progress' && message.data && 'progress' in message.data) {
+              onProgress?.(message.data as ProgressData)
+            }
+            
+            onMessage?.(message)
+            lastPollTimeRef.current = Date.now()
+            console.log('Polling received update:', message.type)
+          }
+        }
+      } catch (err) {
+        console.warn('Polling failed:', err)
+      }
+      
+      // Schedule next poll
+      pollingTimeoutRef.current = setTimeout(poll, pollingInterval)
+    }
+    
+    poll()
+  }, [fingerprint, onMessage, onProgress, pollingInterval, connectionType])
+
   // SSE Connection
   const connectSSE = useCallback(() => {
     if (isConnectingRef.current || eventSourceRef.current) {
@@ -89,6 +133,12 @@ export function useRealtime({
 
     if (!fingerprint) {
       setError('Fingerprint is required')
+      return
+    }
+
+    if (typeof EventSource === 'undefined') {
+      console.log('EventSource not supported, using polling')
+      fallbackToPolling()
       return
     }
 
@@ -104,7 +154,7 @@ export function useRealtime({
       sseTimeoutRef.current = setTimeout(() => {
         if (eventSource.readyState === EventSource.CONNECTING) {
           eventSource.close()
-          setError('SSE connection timeout')
+          console.log('SSE connection timeout, falling back to polling')
           fallbackToPolling()
         }
       }, sseTimeout)
@@ -115,6 +165,7 @@ export function useRealtime({
           sseTimeoutRef.current = null
         }
         
+        console.log('SSE connection established')
         setIsConnected(true)
         setConnectionType('sse')
         isConnectingRef.current = false
@@ -134,6 +185,7 @@ export function useRealtime({
           
           onMessage?.(message)
         } catch {
+          console.error('Failed to parse SSE message')
           setError('Failed to parse message')
         }
       }
@@ -144,6 +196,7 @@ export function useRealtime({
           sseTimeoutRef.current = null
         }
         
+        console.log('SSE connection error, falling back to polling')
         setIsConnected(false)
         setConnectionType('disconnected')
         isConnectingRef.current = false
@@ -155,52 +208,12 @@ export function useRealtime({
       }
 
     } catch {
+      console.log('Failed to create SSE connection, using polling')
       setError('Failed to create SSE connection')
       isConnectingRef.current = false
       fallbackToPolling()
     }
-  }, [fingerprint, onMessage, onConnect, onError, onProgress, sseTimeout])
-
-  // Polling fallback
-  const fallbackToPolling = useCallback(() => {
-    if (connectionType === 'polling') return
-    
-    setConnectionType('polling')
-    setIsConnected(true)
-    setError(null)
-    
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/v1/stream/poll?fingerprint=${encodeURIComponent(fingerprint)}&lastUpdate=${lastPollTimeRef.current}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(10000)
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.data) {
-            const message: SSEMessage = data.data
-            setLastMessage(message)
-            
-            if (message.type === 'progress' && message.data && 'progress' in message.data) {
-              onProgress?.(message.data as ProgressData)
-            }
-            
-            onMessage?.(message)
-            lastPollTimeRef.current = Date.now()
-          }
-        }
-      } catch (err) {
-        console.warn('Polling failed:', err)
-      }
-      
-      // Schedule next poll
-      pollingTimeoutRef.current = setTimeout(poll, pollingInterval)
-    }
-    
-    poll()
-  }, [fingerprint, onMessage, onProgress, pollingInterval, connectionType])
+  }, [fingerprint, onMessage, onConnect, onError, onProgress, sseTimeout, fallbackToPolling])
 
   // Main connect function
   const connect = useCallback(() => {
