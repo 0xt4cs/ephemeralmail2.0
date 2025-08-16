@@ -13,6 +13,8 @@ import {
   Check
 } from 'lucide-react'
 import { retryRequest } from '@/lib/connectivity-utils'
+import { useRealtime, ProgressData } from '@/hooks/use-realtime'
+import { ProgressIndicator } from '@/components/progress-indicator'
 
 interface Email {
   id: string
@@ -33,6 +35,21 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [customEmail, setCustomEmail] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [currentProgress, setCurrentProgress] = useState<ProgressData | null>(null)
+
+  // Real-time connection
+  const { isConnected, connectionType, sendHeartbeat } = useRealtime({
+    fingerprint,
+    onMessage: (message) => {
+      if (message.type === 'email_received') {
+        // Refresh emails when new email is received
+        fetchEmails()
+      }
+    },
+    onProgress: (progress) => {
+      setCurrentProgress(progress)
+    }
+  })
 
   // Helper function for retrying failed requests
     // Import retryRequest from connectivity-utils
@@ -86,6 +103,9 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     setGenerating(true)
     setError(null)
     
+    // Send initial heartbeat for email generation
+    sendHeartbeat('email_generation', 0)
+    
     try {
       const response = await fetch('/api/v1/generate', {
         method: 'POST',
@@ -123,7 +143,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       setGenerating(false)
       setCustomEmail('')
     }
-  }, [fingerprint, fetchEmails, onSelectEmail])
+  }, [fingerprint, fetchEmails, onSelectEmail, sendHeartbeat])
 
   const deleteEmail = useCallback(async (id: string) => {
     if (!fingerprint) return
@@ -225,6 +245,22 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
           </div>
         )}
       </div>
+
+      {/* Progress Indicator */}
+      <ProgressIndicator 
+        progress={currentProgress} 
+        onComplete={() => {
+          setCurrentProgress(null)
+          fetchEmails() // Refresh emails after completion
+        }}
+      />
+
+      {/* Connection Status */}
+      {!isConnected && (
+        <div className="p-2 mb-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800 dark:bg-yellow-950/20 dark:border-yellow-800 dark:text-yellow-200">
+          Using {connectionType === 'polling' ? 'polling' : 'fallback'} connection
+        </div>
+      )}
 
       {/* Email List */}
       <div className="flex-1 overflow-auto">

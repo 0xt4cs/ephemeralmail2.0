@@ -4,6 +4,7 @@ import { generateRandomEmail } from '@/lib/utils'
 import { z } from 'zod'
 import { errorJson, okJson, withHeaders } from '@/lib/api-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { sseManager } from '@/lib/sse-manager'
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: withHeaders() })
@@ -38,11 +39,35 @@ export async function POST(request: NextRequest) {
       return errorJson(429, 'Email limit reached (10 emails per session)')
     }
 
+    // Send progress update - Starting email generation
+    sseManager.updateOperationProgress(fingerprint, {
+      operation: 'email_generation',
+      progress: 10,
+      message: 'Starting email generation...',
+      timestamp: Date.now()
+    })
+
     const emailAddress = customEmail ? `${customEmail}@whitebooking.com` : generateRandomEmail()
+
+    // Send progress update - Checking for existing email
+    sseManager.updateOperationProgress(fingerprint, {
+      operation: 'email_generation',
+      progress: 30,
+      message: 'Checking for existing email...',
+      timestamp: Date.now()
+    })
 
     const existingEmail = await prisma.email.findUnique({ where: { emailAddress } })
     if (existingEmail) {
       if (existingEmail.sessionId === session.id) {
+        // Send completion update
+        sseManager.updateOperationProgress(fingerprint, {
+          operation: 'email_generation',
+          progress: 100,
+          message: 'Email already exists for this session',
+          timestamp: Date.now()
+        })
+        
         return okJson({ 
           id: existingEmail.id, 
           address: existingEmail.emailAddress, 
@@ -54,6 +79,14 @@ export async function POST(request: NextRequest) {
       return errorJson(409, 'Email address already exists')
     }
 
+    // Send progress update - Creating email
+    sseManager.updateOperationProgress(fingerprint, {
+      operation: 'email_generation',
+      progress: 60,
+      message: 'Creating email address...',
+      timestamp: Date.now()
+    })
+
     const email = await prisma.email.create({
       data: {
         emailAddress,
@@ -64,7 +97,23 @@ export async function POST(request: NextRequest) {
       select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
     })
 
+    // Send progress update - Updating session
+    sseManager.updateOperationProgress(fingerprint, {
+      operation: 'email_generation',
+      progress: 90,
+      message: 'Updating session...',
+      timestamp: Date.now()
+    })
+
     await prisma.session.update({ where: { id: session.id }, data: { emailCount: session.emailCount + 1 } })
+
+    // Send completion update
+    sseManager.updateOperationProgress(fingerprint, {
+      operation: 'email_generation',
+      progress: 100,
+      message: 'Email generated successfully!',
+      timestamp: Date.now()
+    })
 
     return okJson({
       id: email.id,

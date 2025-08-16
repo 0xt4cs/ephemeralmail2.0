@@ -22,15 +22,24 @@ export interface SystemNotificationData {
   details?: Record<string, unknown>
 }
 
+export interface ProgressData {
+  operation: 'email_generation' | 'email_processing' | 'attachment_processing'
+  progress: number // 0-100
+  message: string
+  estimatedTime?: number // seconds
+  timestamp: number
+}
+
 export interface SSEMessage {
-  type: 'connected' | 'ping' | 'email_received' | 'system_notification' | 'error'
+  type: 'connected' | 'ping' | 'email_received' | 'system_notification' | 'progress' | 'operation_complete' | 'error'
   timestamp: string
-  data?: EmailNotificationData | SystemNotificationData
+  data?: EmailNotificationData | SystemNotificationData | ProgressData
   message?: string
 }
 
 class SSEManager {
   private connections = new Map<string, SSEConnection>()
+  private activeOperations = new Map<string, ProgressData>()
   private cleanupInterval: NodeJS.Timeout | null = null
 
   constructor() {
@@ -166,6 +175,25 @@ class SSEManager {
     return sentCount
   }
 
+  public broadcastProgressToFingerprint(fingerprint: string, data: ProgressData): number {
+    const message: SSEMessage = {
+      type: 'progress',
+      timestamp: new Date().toISOString(),
+      data
+    }
+
+    let sentCount = 0
+    for (const [id, connection] of this.connections.entries()) {
+      if (connection.fingerprint === fingerprint) {
+        if (this.sendMessage(id, message)) {
+          sentCount++
+        }
+      }
+    }
+
+    return sentCount
+  }
+
   public getConnectionCount(): number {
     return this.connections.size
   }
@@ -196,12 +224,44 @@ class SSEManager {
     }
   }
 
+  // Operation progress tracking
+  public updateOperationProgress(fingerprint: string, progress: ProgressData): void {
+    const key = `${fingerprint}-${progress.operation}`
+    this.activeOperations.set(key, progress)
+    
+    // Clean up completed operations
+    if (progress.progress >= 100) {
+      setTimeout(() => {
+        this.activeOperations.delete(key)
+      }, 5000) // Keep for 5 seconds after completion
+    }
+  }
+
+  public getActiveOperations(fingerprint: string): ProgressData[] {
+    const operations: ProgressData[] = []
+    for (const [key, operation] of this.activeOperations.entries()) {
+      if (key.startsWith(fingerprint)) {
+        operations.push(operation)
+      }
+    }
+    return operations.sort((a, b) => b.timestamp - a.timestamp)
+  }
+
+  public clearOperations(fingerprint: string): void {
+    for (const [key] of this.activeOperations.entries()) {
+      if (key.startsWith(fingerprint)) {
+        this.activeOperations.delete(key)
+      }
+    }
+  }
+
   public destroy(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = null
     }
     this.disconnectAll()
+    this.activeOperations.clear()
   }
 }
 
