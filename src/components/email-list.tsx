@@ -104,11 +104,18 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         if (response.status === 429) {
           throw new Error('Rate limit exceeded - please wait a moment')
         }
-        // If custom email already exists elsewhere, open it instead of failing
         if (response.status === 409 && custom) {
           const address = custom.includes('@') ? custom : `${custom}@whitebooking.com`
-          onSelectEmail(address)
-          return
+          const claim = await fetch('/api/v1/emails', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fingerprint, emailAddress: custom })
+          })
+          if (claim.ok) {
+            await fetchEmails()
+            onSelectEmail(address)
+            return
+          }
         }
         throw new Error(`HTTP ${response.status}: Failed to generate email`)
       }
@@ -199,11 +206,6 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     }
   }, [fingerprint, fetchEmails])
 
-  const openExisting = useCallback(() => {
-    if (!customEmail) return
-    const address = customEmail.includes('@') ? customEmail : `${customEmail}@whitebooking.com`
-    onSelectEmail(address)
-  }, [customEmail, onSelectEmail])
 
   return (
     <div className="h-full flex flex-col bg-card">
@@ -230,15 +232,6 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-            </Button>
-            <Button
-              size="sm"
-              onClick={openExisting}
-              disabled={!fingerprint || !customEmail}
-              className="shrink-0"
-              variant="secondary"
-            >
-              Open
             </Button>
           </div>
 

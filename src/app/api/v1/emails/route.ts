@@ -166,7 +166,7 @@ export async function DELETE(request: NextRequest) {
 // Recovery endpoint
 const RecoverSchema = z.object({
   fingerprint: z.string().min(8),
-  emailAddress: z.string().email(),
+  emailAddress: z.string().min(3),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -175,22 +175,33 @@ export async function PATCH(request: NextRequest) {
     const parsed = RecoverSchema.safeParse(json)
     if (!parsed.success) return errorJson(400, 'Invalid request body', parsed.error.flatten())
     const { fingerprint, emailAddress } = parsed.data
+    const normalizedAddress = emailAddress.includes('@') ? emailAddress : `${emailAddress}@whitebooking.com`
 
     const session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
     if (!session) return errorJson(404, 'Session not found')
 
-    // Find soft-deleted email
-    const email = await prisma.email.findFirst({
+    let email = await prisma.email.findFirst({
       where: { 
-        emailAddress,
+        emailAddress: normalizedAddress,
         deletedAt: { not: null },
-        expiresAt: { gt: new Date() } // Only recover if not expired
+        expiresAt: { gt: new Date() }
       },
       select: { id: true, sessionId: true, deletedAt: true }
     })
 
+    const claimingActive = !email
     if (!email) {
-      return errorJson(404, 'Soft-deleted email not found or expired')
+      const active = await prisma.email.findUnique({
+        where: { emailAddress: normalizedAddress },
+        select: { id: true, sessionId: true, deletedAt: true, expiresAt: true }
+      })
+      if (!active) {
+        return errorJson(404, 'Email address not found')
+      }
+      if (active.expiresAt <= new Date()) {
+        return errorJson(410, 'Email address expired')
+      }
+      email = active
     }
 
     // Check if email belongs to this session or was deleted by this session
@@ -208,21 +219,20 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Recover the email
     await prisma.email.update({
-      where: { emailAddress },
+      where: { emailAddress: normalizedAddress },
       data: {
         deletedAt: null,
         deletedBy: null,
         isActive: true,
-        isRecovered: true,
-        sessionId: session.id // Transfer ownership to current session
+        isRecovered: !claimingActive,
+        sessionId: session.id
       }
     })
 
     return okJson({
       message: 'Email recovered successfully',
-      emailAddress,
+      emailAddress: normalizedAddress,
       recoveredAt: new Date().toISOString()
     })
   } catch (e) {
