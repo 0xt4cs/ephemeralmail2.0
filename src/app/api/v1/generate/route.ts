@@ -12,7 +12,7 @@ export async function OPTIONS() {
 
 const GenerateSchema = z.object({
   fingerprint: z.string().min(8),
-  customEmail: z.string().regex(/^[a-z0-9._-]+$/i).optional(),
+  customEmail: z.string().regex(/^[a-z0-9._@-]+$/i).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now()
     })
 
-    const emailAddress = customEmail ? `${customEmail}@whitebooking.com` : generateRandomEmail()
+    const emailAddress = customEmail
+      ? (customEmail.includes('@') ? customEmail : `${customEmail}@whitebooking.com`)
+      : generateRandomEmail()
 
     // Send progress update - Checking for existing email
     sseManager.updateOperationProgress(fingerprint, {

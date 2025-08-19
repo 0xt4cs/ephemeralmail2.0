@@ -9,8 +9,8 @@ export async function OPTIONS() {
 }
 
 const GenerateSchema = z.object({
-  customEmail: z.string().regex(/^[a-z0-9._-]+$/i).optional(),
-  clientId: z.string().min(8).optional(), // Optional client identifier for rate limiting
+  customEmail: z.string().regex(/^[a-z0-9._@-]+$/i).optional(),
+  clientId: z.string().min(8).optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -22,7 +22,9 @@ export async function POST(request: NextRequest) {
     }
     const { customEmail } = parsed.data
 
-    const emailAddress = customEmail ? `${customEmail}@whitebooking.com` : generateRandomEmail()
+    const emailAddress = customEmail
+      ? (customEmail.includes('@') ? customEmail : `${customEmail}@whitebooking.com`)
+      : generateRandomEmail()
 
     const existingEmail = await prisma.email.findUnique({ where: { emailAddress } })
     if (existingEmail) {

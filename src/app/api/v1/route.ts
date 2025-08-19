@@ -12,11 +12,11 @@ export async function GET() {
     endpoints: {
       generate: { url: '/api/v1/generate', method: 'POST' },
       emails: { url: '/api/v1/emails?fingerprint=...', method: 'GET' },
-      received: { url: '/api/v1/received?fingerprint=...', method: 'GET' },
+      received: { url: '/api/v1/received?fingerprint=...&email={prefixOrFull}', method: 'GET' },
       sessions: { url: '/api/v1/sessions?fingerprint=...', method: 'GET' },
       public: {
-        getEmail: { url: '/api/v1/public/emails?email=...', method: 'GET' },
-        getMessages: { url: '/api/v1/public/received?email=...', method: 'GET' },
+        getEmail: { url: '/api/v1/public/emails?email={prefixOrFull}', method: 'GET' },
+        getMessages: { url: '/api/v1/public/received?email={prefixOrFull}', method: 'GET' },
       },
     },
   })

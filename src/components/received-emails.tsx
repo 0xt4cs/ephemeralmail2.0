@@ -170,6 +170,16 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
           />
         </div>
 
+        {/* Manual Refresh */}
+        <div className="mt-3 flex justify-end">
+          <button
+            className="text-xs text-primary hover:underline"
+            onClick={fetchEmails}
+          >
+            Refresh
+          </button>
+        </div>
+
         {/* Error Display */}
         {error && (
           <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">

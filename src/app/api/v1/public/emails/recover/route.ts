@@ -9,7 +9,7 @@ export async function OPTIONS() {
 
 const RecoverSchema = z.object({
   emailAddress: z.string().email(),
-  clientId: z.string().min(8).optional(), // Optional client identifier
+  clientId: z.string().min(8).optional(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -21,13 +21,12 @@ export async function PATCH(request: NextRequest) {
     }
     const { emailAddress } = parsed.data
 
-    // Find soft-deleted public email
     const email = await prisma.email.findFirst({
       where: { 
         emailAddress,
-        sessionId: { startsWith: 'public-' }, // Public email
+          sessionId: { startsWith: 'public-' },
         deletedAt: { not: null },
-        expiresAt: { gt: new Date() } // Only recover if not expired
+        expiresAt: { gt: new Date() }
       },
       select: { id: true, deletedAt: true, deletedBy: true }
     })
@@ -36,12 +35,10 @@ export async function PATCH(request: NextRequest) {
       return errorJson(404, 'Soft-deleted public email not found or expired')
     }
 
-    // Check if this email was deleted by public API (for security)
     if (email.deletedBy && email.deletedBy !== 'public-api') {
       return errorJson(403, 'Email was deleted by a different client')
     }
 
-    // Recover the email
     await prisma.email.update({
       where: { emailAddress },
       data: {

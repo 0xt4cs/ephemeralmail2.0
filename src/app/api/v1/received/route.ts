@@ -10,7 +10,7 @@ export async function OPTIONS() {
 
 const GetQuerySchema = z.object({
   fingerprint: z.string().min(8),
-  email: z.string().email().optional(),
+  email: z.string().min(3).optional(),
   id: z.string().cuid().optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
   cursor: z.string().optional(),
@@ -32,14 +32,23 @@ export async function GET(request: NextRequest) {
     const session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
     if (!session) return errorJson(404, 'Session not found')
 
-    const owned = await prisma.email.findFirst({
-      where: { sessionId: session.id, ...(id ? { id } : {}), ...(email ? { emailAddress: email } : {}) },
-      select: { id: true },
-    })
-    if (!owned) return errorJson(404, 'Email not found in this session')
+    const normalizedAddress = email
+      ? (email.includes('@') ? email : `${email}@whitebooking.com`)
+      : undefined
+
+    const targetEmail = normalizedAddress
+      ? await prisma.email.findUnique({ where: { emailAddress: normalizedAddress }, select: { id: true } })
+      : await prisma.email.findFirst({
+          where: { sessionId: session.id, ...(id ? { id } : {}) },
+          select: { id: true },
+        })
+
+    if (!targetEmail) {
+      return errorJson(404, normalizedAddress ? 'Email address not found' : 'Email not found in this session')
+    }
 
     const messages = await prisma.receivedEmail.findMany({
-      where: { emailId: owned.id },
+      where: { emailId: targetEmail.id },
       orderBy: { receivedAt: 'desc' },
       take: limit + 1,
       skip: cursor ? 1 : 0,
@@ -63,7 +72,7 @@ export async function GET(request: NextRequest) {
       nextCursor,
       meta: {
         total: page.length,
-        email: email || 'all',
+        email: normalizedAddress || 'all',
         timestamp: new Date().toISOString()
       }
     }, {
