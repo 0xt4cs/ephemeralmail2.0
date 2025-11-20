@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,9 @@ import { EmailSkeletonLoader } from '@/components/skeleton-loader'
 import { EmptyState } from '@/components/empty-state'
 import { useRealtimeContext } from '@/contexts/realtime-context'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
+
+// Track DOM notifications for cleanup (prevent memory leaks)
+const activeNotifications = new Set<HTMLElement>()
 
 interface Email {
   id: string
@@ -41,11 +44,21 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [emailToDelete, setEmailToDelete] = useState<{ id: string; address: string } | null>(null)
-  const { currentProgress, sendHeartbeat } = useRealtimeContext() 
+  const { currentProgress, sendHeartbeat } = useRealtimeContext()
+  
+  // Prevent race conditions with ref to track ongoing operations
+  const fetchingRef = useRef(false)
+  const generatingRef = useRef(false) 
 
   const fetchEmails = useCallback(async () => {
     if (!fingerprint) return
     
+    // Prevent concurrent fetches (race condition fix)
+    if (fetchingRef.current) {
+      return
+    }
+    
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
@@ -83,12 +96,19 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       }
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [fingerprint])
 
   const generateEmail = useCallback(async (custom?: string) => {
     if (!fingerprint) return
     
+    // Prevent concurrent generation (race condition fix)
+    if (generatingRef.current) {
+      return
+    }
+    
+    generatingRef.current = true
     setGenerating(true)
     setError(null)
     
@@ -134,9 +154,13 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         notification.textContent = `Email generated: ${data.data.address}`
         document.body.appendChild(notification)
         
+        // Track notification for cleanup (memory leak fix)
+        activeNotifications.add(notification)
+        
         setTimeout(() => {
           if (document.body.contains(notification)) {
             document.body.removeChild(notification)
+            activeNotifications.delete(notification)
           }
         }, 3000)
         
@@ -156,6 +180,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     } finally {
       setGenerating(false)
       setCustomEmail('')
+      generatingRef.current = false
     }
   }, [fingerprint, fetchEmails, onSelectEmail, sendHeartbeat])
 
@@ -273,6 +298,18 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       fetchUnreadCounts()
     }
   }, [emails.length, fetchUnreadCounts])
+
+  // Cleanup all notifications on unmount (memory leak fix)
+  useEffect(() => {
+    return () => {
+      activeNotifications.forEach((notification: HTMLElement) => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+        }
+      })
+      activeNotifications.clear()
+    }
+  }, [])
 
 
   return (

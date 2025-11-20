@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
     })
 
     if (!receivedEmail || !receivedEmail.attachments) {
-      console.log('ReceivedEmail not found for:', { emailId, fingerprint })
       return errorJson(404, 'Attachment not found')
     }
 
@@ -69,23 +68,10 @@ export async function GET(request: NextRequest) {
 
     const attachment = attachments.find(a => a.name === attachmentName)
     if (!attachment) {
-      console.log('Attachment not found in list:', { 
-        attachmentName, 
-        availableAttachments: attachments.map(a => a.name) 
-      })
       return errorJson(404, 'Attachment not found')
     }
 
     if (!attachment.content) {
-      console.log('Attachment content missing for:', {
-        emailId,
-        attachmentName,
-        attachment: {
-          name: attachment.name,
-          size: attachment.size,
-          type: attachment.type
-        }
-      })
       return errorJson(404, 'Attachment content not available for preview. Please download the file instead.')
     }
 

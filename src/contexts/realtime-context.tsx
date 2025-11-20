@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { useRealtime, SSEMessage, ProgressData } from '@/hooks/use-realtime'
 
 interface RealtimeContextType {
@@ -22,18 +22,17 @@ interface RealtimeProviderProps {
 
 export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProps) {
   const [currentProgress, setCurrentProgress] = useState<ProgressData | null>(null)
-  const [refreshCallbacks, setRefreshCallbacks] = useState<(() => void)[]>([])
+  
+  // Use ref instead of state to avoid stale closure issues (race condition fix)
+  const refreshCallbacksRef = useRef<(() => void)[]>([])
 
   const refreshAll = useCallback(() => {
-    console.log('Refreshing all components...')
-    refreshCallbacks.forEach(callback => callback())
-  }, [refreshCallbacks])
+    refreshCallbacksRef.current.forEach(callback => callback())
+  }, []) // No dependencies - always uses current ref value
 
   const { isConnected, connectionType, lastMessage, sendHeartbeat } = useRealtime({
     fingerprint,
     onMessage: (message) => {
-      console.log('[RealtimeContext] 📨 Message received:', message.type)
-      
       // Handle different message types
       switch (message.type) {
         case 'email_received':
@@ -55,29 +54,26 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
       setCurrentProgress(progress)
     },
     onConnect: () => {
-      console.log('[RealtimeContext] ✅ Connection established - isConnected: true')
+      // Connection established
     },
     onDisconnect: () => {
-      console.log('[RealtimeContext] ❌ Connection lost - isConnected: false')
+      // Connection lost
     },
-    onError: (error) => {
-      console.error('[RealtimeContext] ⚠️ Connection error:', error)
+    onError: () => {
+      // Connection error
     }
   })
 
   // Debug log connection state changes
   useEffect(() => {
-    console.log('[RealtimeContext] 📊 Connection state changed:', {
-      isConnected,
-      connectionType,
-      timestamp: new Date().toISOString()
-    })
+    // Silent
   }, [isConnected, connectionType])
 
   const registerRefreshCallback = (callback: () => void) => {
-    setRefreshCallbacks(prev => [...prev, callback])
+    refreshCallbacksRef.current = [...refreshCallbacksRef.current, callback]
+    
     return () => {
-      setRefreshCallbacks(prev => prev.filter(cb => cb !== callback))
+      refreshCallbacksRef.current = refreshCallbacksRef.current.filter(cb => cb !== callback)
     }
   }
 

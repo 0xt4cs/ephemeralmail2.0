@@ -37,23 +37,7 @@ export default function Home() {
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
     setFingerprint(fp)
-    
-    // Add a small delay to ensure fingerprint is set before any API calls
-    const timer = setTimeout(() => {
-      // This ensures components have the fingerprint before making requests
-    }, 100)
-    
-    return () => clearTimeout(timer)
-  }, [])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFingerprint(prev => prev)
-    }, 15000)
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
+    // No need for timer delay - fingerprint is set immediately
   }, [])
 
   // Remove handleRefresh - no longer needed with real-time Socket.IO updates

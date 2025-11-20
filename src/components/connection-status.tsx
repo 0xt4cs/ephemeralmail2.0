@@ -18,16 +18,6 @@ export function ConnectionStatus() {
     setIsMounted(true)
   }, [])
 
-  // Debug logging to understand connection state
-  useEffect(() => {
-    console.log('[ConnectionStatus] 🔍 Component state:', {
-      isConnected,
-      connectionType,
-      isMounted,
-      timestamp: new Date().toISOString()
-    })
-  }, [isConnected, connectionType, isMounted])
-
   const getStatusConfig = () => {
     if (!isMounted) {
       return {

@@ -92,22 +92,18 @@ export function useRealtime({
   const fallbackToPolling = useCallback(() => {
     // Prevent multiple fallback attempts
     if (isPollingModeRef.current) {
-      console.log('[Realtime] ⚠️ Already in polling mode, skipping fallback')
       return
     }
     
-    console.log('[Realtime] 🔄 Starting polling fallback')
     isPollingModeRef.current = true // Mark that we're now in polling mode
     
-    // CRITICAL: Disconnect Socket.IO completely to prevent race condition
     if (socketRef.current) {
-      console.log('[Realtime] ⚠️ Disconnecting Socket.IO before starting polling')
       try {
         socketRef.current.io.opts.reconnection = false // Disable auto-reconnect
         socketRef.current.removeAllListeners() // Remove all event listeners
         socketRef.current.disconnect() // Disconnect the socket
-      } catch (err) {
-        console.warn('[Realtime] Error disconnecting socket:', err)
+      } catch {
+        // Silent fail
       }
       socketRef.current = null // Clear the reference
     }
@@ -138,15 +134,9 @@ export function useRealtime({
             messageHandlersRef.current.onMessage?.(message)
             lastPollTimeRef.current = Date.now()
           }
-        } else {
-          console.warn('[Realtime] Polling response not OK:', response.status)
         }
-      } catch (err) {
-        if (err instanceof Error && err.name === 'TimeoutError') {
-          console.warn('[Realtime] ⚠️ Polling timeout - server may be slow')
-        } else {
-          console.warn('[Realtime] Polling failed:', err)
-        }
+      } catch {
+        // Silent fail - polling will retry automatically
       }
       
       // Schedule next poll
@@ -163,12 +153,10 @@ export function useRealtime({
   const connectSocketIO = useCallback(() => {
     // Prevent reconnection if we're in stable polling mode
     if (isPollingModeRef.current) {
-      console.log('[Realtime] ⚠️ In polling mode, skipping Socket.IO connection')
       return
     }
     
     if (isConnectingRef.current || (socketRef.current && isSocketConnected())) {
-      console.log('[Realtime] ⚠️ Already connecting or connected, skipping')
       return
     }
 
@@ -181,7 +169,6 @@ export function useRealtime({
     setError(null)
 
     try {
-      console.log('[Realtime] 🔌 Connecting via Socket.IO...')
       const socket = connectSocket(fingerprint)
       
       if (!socket) {
@@ -192,14 +179,7 @@ export function useRealtime({
 
       // Connection established
       socket.on('connect', () => {
-        console.log('[Realtime] ✅ Socket.IO connected - Socket ID:', socket.id)
         const transport = getTransportType()
-        console.log('[Realtime] 🚀 Transport type:', transport)
-        console.log('[Realtime] 📡 Connection details:', {
-          connected: socket.connected,
-          id: socket.id,
-          transport: socket.io.engine?.transport?.name || 'unknown'
-        })
         
         setIsConnected(true)
         setConnectionType(transport === 'websocket' ? 'websocket' : 'polling')
@@ -230,16 +210,12 @@ export function useRealtime({
 
       // Transport upgrade
       socket.io.engine.on('upgrade', (transport) => {
-        console.log('[Realtime] Transport upgraded to:', transport.name)
         setConnectionType(transport.name === 'websocket' ? 'websocket' : 'polling')
       })
 
       socket.on('disconnect', (reason) => {
-        console.log('[Realtime] 🔌 Socket.IO disconnected:', reason)
-        
         // If we're in stable polling mode, don't try to reconnect via Socket.IO
         if (isPollingModeRef.current) {
-          console.log('[Realtime] ⚠️ Already in polling mode, ignoring Socket.IO disconnect')
           return
         }
         
@@ -253,7 +229,6 @@ export function useRealtime({
           if (reconnectAttemptsRef.current < maxReconnectAttempts) {
             reconnectAttemptsRef.current++
             const delay = Math.min(reconnectInterval * reconnectAttemptsRef.current, 30000)
-            console.log(`[Realtime] 🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`)
             
             reconnectTimeoutRef.current = setTimeout(() => {
               if (!isSocketConnected() && !isPollingModeRef.current) {
@@ -261,7 +236,6 @@ export function useRealtime({
               }
             }, delay)
           } else {
-            console.log('[Realtime] ⚠️ Max reconnection attempts reached, falling back to polling')
             socket.io.opts.reconnection = false
             fallbackToPolling()
           }
@@ -270,14 +244,12 @@ export function useRealtime({
 
       // Connection errors
       socket.on('connect_error', (err) => {
-        console.error('[Realtime] ❌ Socket.IO connection error:', err.message)
         setError(err.message)
         isConnectingRef.current = false
         messageHandlersRef.current.onError?.(err)
 
         // Fallback to polling if initial connection fails
         if (reconnectAttemptsRef.current === 0) {
-          console.log('[Realtime] ⚠️ Initial connection failed, falling back to polling')
           // Disable Socket.IO auto-reconnect before fallback
           socket.io.opts.reconnection = false
           fallbackToPolling()
@@ -285,25 +257,22 @@ export function useRealtime({
       })
 
       // Reconnection events
-      socket.on('reconnect_attempt', (attemptNumber) => {
-        console.log('[Realtime] Reconnection attempt:', attemptNumber)
+      socket.on('reconnect_attempt', () => {
+        // Silent
       })
 
-      socket.on('reconnect', (attemptNumber) => {
-        console.log('[Realtime] Reconnected after', attemptNumber, 'attempts')
+      socket.on('reconnect', () => {
         setError(null)
         reconnectAttemptsRef.current = 0
       })
 
       socket.on('reconnect_failed', () => {
-        console.error('[Realtime] ❌ Reconnection failed, falling back to polling')
         // Disable Socket.IO auto-reconnect before fallback
         socket.io.opts.reconnection = false
         fallbackToPolling()
       })
 
-    } catch (err) {
-      console.error('[Realtime] ❌ Failed to create Socket.IO connection:', err)
+    } catch {
       setError('Failed to create Socket.IO connection')
       isConnectingRef.current = false
       
@@ -321,8 +290,6 @@ export function useRealtime({
   }, [connectSocketIO])
 
   const disconnect = useCallback(() => {
-    console.log('[Realtime] 🔌 Manual disconnect triggered')
-
     // Clear all timeouts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
@@ -339,8 +306,8 @@ export function useRealtime({
       try {
         socketRef.current.removeAllListeners()
         disconnectSocket()
-      } catch (err) {
-        console.warn('[Realtime] Error during disconnect:', err)
+      } catch {
+        // Silent fail
       }
       socketRef.current = null
     }
@@ -355,7 +322,6 @@ export function useRealtime({
   }, [])
 
   const reconnect = useCallback(() => {
-    console.log('[Realtime] Manual reconnect triggered')
     disconnect()
     reconnectAttemptsRef.current = 0
     setTimeout(() => {
@@ -382,7 +348,9 @@ export function useRealtime({
           progress,
           timestamp: Date.now()
         })
-      }).catch(console.warn)
+      }).catch(() => {
+        // Silent fail
+      })
     }
   }, [fingerprint])
 
@@ -390,7 +358,6 @@ export function useRealtime({
   useEffect(() => {
     // Only connect if we haven't initialized yet
     if (fingerprint && !hasInitialized) {
-      console.log('[Realtime] 🚀 Initial connection attempt')
       setHasInitialized(true)
       connect()
     }
@@ -398,7 +365,6 @@ export function useRealtime({
     // Cleanup on unmount
     return () => {
       if (hasInitialized) {
-        console.log('[Realtime] 🔌 Component unmounting, cleaning up')
         disconnect()
       }
     }

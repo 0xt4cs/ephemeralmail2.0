@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { 
   Search, 
@@ -11,6 +11,9 @@ import {
 import { MessageSkeletonLoader } from '@/components/skeleton-loader'
 import { EmptyState } from '@/components/empty-state'
 import { useRealtimeContext } from '@/contexts/realtime-context'
+
+// Track DOM notifications for cleanup (prevent memory leaks)
+const activeNotifications = new Set<HTMLElement>()
 
 interface ReceivedEmail {
   id: string
@@ -39,10 +42,19 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
+  
+  // Prevent race conditions with ref to track ongoing operations
+  const fetchingRef = useRef(false)
 
   const fetchEmails = useCallback(async () => {
     if (!fingerprint || !selectedEmailAddress) return
     
+    // Prevent concurrent fetches (race condition fix)
+    if (fetchingRef.current) {
+      return
+    }
+    
+    fetchingRef.current = true
     setLoading(true)
     setError(null)
     
@@ -77,6 +89,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       }
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [fingerprint, selectedEmailAddress])
 
@@ -105,17 +118,42 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       notification.textContent = `New email from ${emailData?.fromAddress || 'someone'}`
       document.body.appendChild(notification)
       
+      // Track notification for cleanup (race condition/memory leak fix)
+      activeNotifications.add(notification)
+      
       // Remove notification after 3 seconds
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         if (document.body.contains(notification)) {
           document.body.removeChild(notification)
+          activeNotifications.delete(notification)
         }
       }, 3000)
       
-      // Refresh received emails when new email is received
+      // Cleanup timeout on unmount
+      return () => {
+        clearTimeout(timeoutId)
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+          activeNotifications.delete(notification)
+        }
+      }
+      
+      // Refresh received emails when new email is received (no race condition - has fetchingRef guard)
       fetchEmails()
     }
   }, [lastMessage, selectedEmailAddress, fetchEmails])
+  
+  // Cleanup all notifications on unmount
+  useEffect(() => {
+    return () => {
+      activeNotifications.forEach(notification => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification)
+        }
+      })
+      activeNotifications.clear()
+    }
+  }, [])
 
   const filteredEmails = emails.filter(email => 
     email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||

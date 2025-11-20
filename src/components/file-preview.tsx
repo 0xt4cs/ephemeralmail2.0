@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   Image, 
   FileVideo, 
@@ -306,25 +306,54 @@ function TextPreviewComponent({ url }: { url: string; filename: string }) {
   const [content, setContent] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Prevent race conditions when URL changes rapidly
+  const fetchingRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
+    // Cancel any in-flight request when URL changes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
     const fetchContent = async () => {
+      if (fetchingRef.current) {
+        // Already fetching
+      }
+      
+      fetchingRef.current = true
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+      
       try {
         setLoading(true)
-        const response = await fetch(url)
+        const response = await fetch(url, { signal: controller.signal })
         if (!response.ok) {
           throw new Error(`Failed to load content: ${response.status}`)
         }
         const text = await response.text()
         setContent(text)
+        setError(null)
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return // Don't update state for aborted requests
+        }
         setError(err instanceof Error ? err.message : 'Failed to load content')
       } finally {
         setLoading(false)
+        fetchingRef.current = false
       }
     }
 
     fetchContent()
+    
+    // Cleanup: abort fetch on unmount or URL change
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [url])
 
   if (loading) {

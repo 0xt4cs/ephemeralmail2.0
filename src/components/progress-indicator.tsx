@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ProgressData } from '@/hooks/use-realtime'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -14,21 +14,39 @@ interface ProgressIndicatorProps {
 export function ProgressIndicator({ progress, onComplete }: ProgressIndicatorProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [completed, setCompleted] = useState(false)
+  
+  // Track timeout to prevent race conditions (memory leak fix)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+    
     if (progress) {
       setIsVisible(true)
       if (progress.progress >= 100) {
         setCompleted(true)
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           setIsVisible(false)
           setCompleted(false)
           onComplete?.()
+          timeoutRef.current = null
         }, 3000) // Hide after 3 seconds
       }
     } else {
       setIsVisible(false)
       setCompleted(false)
+    }
+    
+    // Cleanup timeout on unmount or progress change
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
     }
   }, [progress, onComplete])
 
