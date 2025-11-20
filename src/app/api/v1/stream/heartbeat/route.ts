@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { sseManager } from '@/lib/sse-manager'
+import { socketManager, initializeSocketManager } from '@/lib/socket-manager'
 import { okJson, errorJson } from '@/lib/server/api-helpers'
 import { z } from 'zod'
 
@@ -32,14 +32,8 @@ export async function POST(request: NextRequest) {
       return errorJson(404, 'Session not found')
     }
 
-    // Update operation progress in SSE manager
-    sseManager.updateOperationProgress(fingerprint, {
-      operation: operation as 'email_generation' | 'email_processing' | 'attachment_processing',
-      progress: progress || 0,
-      message: message || 'Operation in progress...',
-      estimatedTime,
-      timestamp: Date.now()
-    })
+    // Initialize Socket.IO manager
+    initializeSocketManager()
 
     // Send progress update to all connected clients for this fingerprint
     const progressData = {
@@ -50,7 +44,7 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now()
     }
 
-    const sentCount = sseManager.broadcastProgressToFingerprint(fingerprint, progressData)
+    const sentCount = socketManager.sendProgress(fingerprint, progressData)
 
     return okJson({
       success: true,

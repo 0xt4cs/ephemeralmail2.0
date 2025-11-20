@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { sseManager } from '@/lib/sse-manager'
+import { okJson, errorJson } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const fingerprint = url.searchParams.get('fingerprint')
     
     if (!fingerprint || fingerprint.length < 8) {
-      return new Response('Invalid fingerprint', { status: 400 })
+      return errorJson(400, 'Invalid fingerprint')
     }
 
     const session = await prisma.session.findUnique({
@@ -17,26 +17,20 @@ export async function GET(request: NextRequest) {
     })
 
     if (!session) {
-      return new Response('Session not found', { status: 404 })
+      return errorJson(404, 'Session not found')
     }
 
-    const stream = sseManager.createConnection(fingerprint, request)
-
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no', // Disable nginx buffering
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Cache-Control, x-fingerprint',
-        'Access-Control-Max-Age': '86400'
-      }
+    return okJson({ 
+      message: 'Socket.IO connection available',
+      fingerprint,
+      connectionType: 'socket.io',
+      hint: 'Connect using Socket.IO client library',
+      endpoint: '/' 
     })
 
-  } catch {
-    return new Response('Internal server error', { status: 500 })
+  } catch (error) {
+    console.error('[Stream Route] Error:', error)
+    return errorJson(500, 'Internal server error')
   }
 }
 
@@ -51,5 +45,3 @@ export async function OPTIONS() {
     }
   })
 }
-
-// sseManager is available for internal use but not exported from API routes

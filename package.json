@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 8989",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start -p 8989",
+    "start": "NODE_ENV=production node server.js",
     "email": "ts-node --project tsconfig.smtp.json src/server/email-server.ts",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -13,7 +13,6 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
-
     "@prisma/client": "^5.18.0",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
@@ -33,6 +32,8 @@
     "react-dom": "^18",
     "sanitize-html": "^2.17.0",
     "smtp-server": "^3.14.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "tailwind-merge": "^2.5.4",
     "zod": "^4.0.16"
   },

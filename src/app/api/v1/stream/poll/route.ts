@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { sseManager } from '@/lib/sse-manager'
+import { socketManager, initializeSocketManager } from '@/lib/socket-manager'
 import { okJson, errorJson } from '@/lib/server/api-helpers'
 
 export async function GET(request: NextRequest) {
@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return errorJson(404, 'Session not found')
     }
+
+    // Initialize Socket.IO manager for consistency
+    initializeSocketManager()
 
     // Check for new emails since last update
     const lastUpdateTime = lastUpdate ? new Date(parseInt(lastUpdate)) : new Date(0)
@@ -71,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if there are any active operations that need progress updates
-    const activeOperations = sseManager.getActiveOperations(fingerprint)
+    const activeOperations = socketManager.getActiveOperations(fingerprint)
     if (activeOperations.length > 0) {
       const latestOperation = activeOperations[0]
       const message = {

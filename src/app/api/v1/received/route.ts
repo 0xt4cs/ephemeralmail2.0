@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { errorJson, okJson, withHeaders, verifyWebhookSecret, sanitizeIncomingHtml } from '@/lib/api-helpers'
-import { sseManager } from '@/lib/sse-manager'
+import { socketManager, initializeSocketManager } from '@/lib/socket-manager'
 import { z } from 'zod'
 
 export async function OPTIONS() {
@@ -151,7 +151,9 @@ export async function POST(request: NextRequest) {
         attachmentCount: attachments?.length || 0
       }
 
-      sseManager.broadcastToFingerprint(emailWithSession.session.fingerprint, notificationData)
+      // Notify via Socket.IO
+      initializeSocketManager()
+      socketManager.broadcastToFingerprint(emailWithSession.session.fingerprint, notificationData)
     }
 
     return okJson({

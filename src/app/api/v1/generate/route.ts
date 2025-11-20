@@ -4,7 +4,7 @@ import { generateRandomEmail } from '@/lib/utils'
 import { z } from 'zod'
 import { errorJson, okJson, withHeaders } from '@/lib/api-helpers'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { sseManager } from '@/lib/sse-manager'
+import { socketManager, initializeSocketManager } from '@/lib/socket-manager'
 
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: withHeaders() })
@@ -39,8 +39,11 @@ export async function POST(request: NextRequest) {
       return errorJson(429, 'Email limit reached (10 emails per session)')
     }
 
+    // Initialize Socket.IO manager
+    initializeSocketManager()
+
     // Send progress update - Starting email generation
-    sseManager.updateOperationProgress(fingerprint, {
+    socketManager.sendProgress(fingerprint, {
       operation: 'email_generation',
       progress: 10,
       message: 'Starting email generation...',
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
       : generateRandomEmail()
 
     // Send progress update - Checking for existing email
-    sseManager.updateOperationProgress(fingerprint, {
+    socketManager.sendProgress(fingerprint, {
       operation: 'email_generation',
       progress: 30,
       message: 'Checking for existing email...',
@@ -63,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (existingEmail) {
       if (existingEmail.sessionId === session.id) {
         // Send completion update
-        sseManager.updateOperationProgress(fingerprint, {
+        socketManager.sendProgress(fingerprint, {
           operation: 'email_generation',
           progress: 100,
           message: 'Email already exists for this session',
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send progress update - Creating email
-    sseManager.updateOperationProgress(fingerprint, {
+    socketManager.sendProgress(fingerprint, {
       operation: 'email_generation',
       progress: 60,
       message: 'Creating email address...',
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Send progress update - Updating session
-    sseManager.updateOperationProgress(fingerprint, {
+    socketManager.sendProgress(fingerprint, {
       operation: 'email_generation',
       progress: 90,
       message: 'Updating session...',
@@ -110,12 +113,7 @@ export async function POST(request: NextRequest) {
     await prisma.session.update({ where: { id: session.id }, data: { emailCount: session.emailCount + 1 } })
 
     // Send completion update
-    sseManager.updateOperationProgress(fingerprint, {
-      operation: 'email_generation',
-      progress: 100,
-      message: 'Email generated successfully!',
-      timestamp: Date.now()
-    })
+    socketManager.completeOperation(fingerprint, 'email_generation')
 
     return okJson({
       id: email.id,

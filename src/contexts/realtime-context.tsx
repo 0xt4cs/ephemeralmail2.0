@@ -5,7 +5,7 @@ import { useRealtime, SSEMessage, ProgressData } from '@/hooks/use-realtime'
 
 interface RealtimeContextType {
   isConnected: boolean
-  connectionType: 'sse' | 'polling' | 'disconnected'
+  connectionType: 'websocket' | 'polling' | 'disconnected'
   lastMessage: SSEMessage | null
   currentProgress: ProgressData | null
   sendHeartbeat: (operation: string, progress?: number) => void
@@ -32,7 +32,7 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
   const { isConnected, connectionType, lastMessage, sendHeartbeat } = useRealtime({
     fingerprint,
     onMessage: (message) => {
-      console.log('Realtime message received:', message.type)
+      console.log('[RealtimeContext] Message received:', message.type)
       
       // Handle different message types
       switch (message.type) {
@@ -55,13 +55,13 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
       setCurrentProgress(progress)
     },
     onConnect: () => {
-      console.log('Realtime connection established')
+      console.log('[RealtimeContext] Connection established')
     },
     onDisconnect: () => {
-      console.log('Realtime connection lost')
+      console.log('[RealtimeContext] Connection lost')
     },
     onError: (error) => {
-      console.error('Realtime connection error:', error)
+      console.error('[RealtimeContext] Connection error:', error)
     }
   })
 

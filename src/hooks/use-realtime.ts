@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { connectSocket, disconnectSocket, isSocketConnected, getTransportType, type Socket } from '@/lib/socket'
 
 export interface EmailNotificationData {
   emailId: string
@@ -35,7 +36,7 @@ interface UseRealtimeOptions {
   onMessage?: (message: SSEMessage) => void
   onConnect?: () => void
   onDisconnect?: () => void
-  onError?: (error: Event) => void
+  onError?: (error: Error) => void
   onProgress?: (progress: ProgressData) => void
   autoReconnect?: boolean
   reconnectInterval?: number
@@ -46,7 +47,7 @@ interface UseRealtimeOptions {
 
 interface UseRealtimeReturn {
   isConnected: boolean
-  connectionType: 'sse' | 'polling' | 'disconnected'
+  connectionType: 'websocket' | 'polling' | 'disconnected'
   lastMessage: SSEMessage | null
   error: string | null
   connect: () => void
@@ -63,36 +64,39 @@ export function useRealtime({
   onError,
   onProgress,
   autoReconnect = true,
-  reconnectInterval = 5000, // eslint-disable-line @typescript-eslint/no-unused-vars
+  reconnectInterval = 5000,
   maxReconnectAttempts = 5,
   pollingInterval = 3000,
-  sseTimeout = 30000
 }: UseRealtimeOptions): UseRealtimeReturn {
   const [isConnected, setIsConnected] = useState(false)
-  const [connectionType, setConnectionType] = useState<'sse' | 'polling' | 'disconnected'>('disconnected')
+  const [connectionType, setConnectionType] = useState<'websocket' | 'polling' | 'disconnected'>('disconnected')
   const [lastMessage, setLastMessage] = useState<SSEMessage | null>(null)
   const [error, setError] = useState<string | null>(null)
   
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const socketRef = useRef<Socket | null>(null)
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const isConnectingRef = useRef(false)
   const lastPollTimeRef = useRef(0)
-  const sseTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const messageHandlersRef = useRef({ onMessage, onConnect, onDisconnect, onError, onProgress })
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    messageHandlersRef.current = { onMessage, onConnect, onDisconnect, onError, onProgress }
+  }, [onMessage, onConnect, onDisconnect, onError, onProgress])
 
   // Polling fallback
   const fallbackToPolling = useCallback(() => {
     if (connectionType === 'polling') return
     
-    console.log('Starting polling fallback')
+    console.log('[Realtime] Starting polling fallback')
     setConnectionType('polling')
     setIsConnected(true)
     setError(null)
     
     const poll = async () => {
       try {
-        console.log('Polling for updates...')
         const response = await fetch(`/api/v1/stream/poll?fingerprint=${encodeURIComponent(fingerprint)}&lastUpdate=${lastPollTimeRef.current}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -106,28 +110,30 @@ export function useRealtime({
             setLastMessage(message)
             
             if (message.type === 'progress' && message.data && 'progress' in message.data) {
-              onProgress?.(message.data as ProgressData)
+              messageHandlersRef.current.onProgress?.(message.data as ProgressData)
             }
             
-            onMessage?.(message)
+            messageHandlersRef.current.onMessage?.(message)
             lastPollTimeRef.current = Date.now()
-            console.log('Polling received update:', message.type)
           }
         }
       } catch (err) {
-        console.warn('Polling failed:', err)
+        console.warn('[Realtime] Polling failed:', err)
       }
       
       // Schedule next poll
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current)
+      }
       pollingTimeoutRef.current = setTimeout(poll, pollingInterval)
     }
     
     poll()
-  }, [fingerprint, onMessage, onProgress, pollingInterval, connectionType])
+  }, [fingerprint, pollingInterval, connectionType])
 
-  // SSE Connection
-  const connectSSE = useCallback(() => {
-    if (isConnectingRef.current || eventSourceRef.current) {
+  // Socket.IO Connection
+  const connectSocketIO = useCallback(() => {
+    if (isConnectingRef.current || (socketRef.current && isSocketConnected())) {
       return
     }
 
@@ -136,92 +142,117 @@ export function useRealtime({
       return
     }
 
-    if (typeof EventSource === 'undefined') {
-      console.log('EventSource not supported, using polling')
-      fallbackToPolling()
-      return
-    }
-
     isConnectingRef.current = true
     setError(null)
 
     try {
-      const url = `/api/v1/stream?fingerprint=${encodeURIComponent(fingerprint)}`
-      const eventSource = new EventSource(url)
-      eventSourceRef.current = eventSource
+      console.log('[Realtime] Connecting via Socket.IO...')
+      const socket = connectSocket(fingerprint)
+      socketRef.current = socket
 
-      // Set SSE timeout
-      sseTimeoutRef.current = setTimeout(() => {
-        if (eventSource.readyState === EventSource.CONNECTING) {
-          eventSource.close()
-          console.log('SSE connection timeout, falling back to polling')
-          fallbackToPolling()
-        }
-      }, sseTimeout)
-
-      eventSource.onopen = () => {
-        if (sseTimeoutRef.current) {
-          clearTimeout(sseTimeoutRef.current)
-          sseTimeoutRef.current = null
-        }
-        
-        console.log('SSE connection established')
+      // Connection established
+      socket.on('connect', () => {
+        console.log('[Realtime] Socket.IO connected')
         setIsConnected(true)
-        setConnectionType('sse')
+        const transport = getTransportType()
+        setConnectionType(transport === 'websocket' ? 'websocket' : 'polling')
         isConnectingRef.current = false
         reconnectAttemptsRef.current = 0
-        onConnect?.()
-      }
+        messageHandlersRef.current.onConnect?.()
+      })
 
-      eventSource.onmessage = (event) => {
-        try {
-          const message: SSEMessage = JSON.parse(event.data)
-          setLastMessage(message)
-          
-          // Handle progress updates
-          if (message.type === 'progress' && message.data && 'progress' in message.data) {
-            onProgress?.(message.data as ProgressData)
-          }
-          
-          onMessage?.(message)
-        } catch {
-          console.error('Failed to parse SSE message')
-          setError('Failed to parse message')
-        }
-      }
-
-      eventSource.onerror = (event) => {
-        if (sseTimeoutRef.current) {
-          clearTimeout(sseTimeoutRef.current)
-          sseTimeoutRef.current = null
+      // Receive messages
+      socket.on('message', (message: SSEMessage) => {
+        setLastMessage(message)
+        
+        // Handle progress updates
+        if (message.type === 'progress' && message.data && 'progress' in message.data) {
+          messageHandlersRef.current.onProgress?.(message.data as ProgressData)
         }
         
-        console.log('SSE connection error, falling back to polling')
+        messageHandlersRef.current.onMessage?.(message)
+      })
+
+      // Transport upgrade
+      socket.io.engine.on('upgrade', (transport) => {
+        console.log('[Realtime] Transport upgraded to:', transport.name)
+        setConnectionType(transport.name === 'websocket' ? 'websocket' : 'polling')
+      })
+
+      // Disconnection
+      socket.on('disconnect', (reason) => {
+        console.log('[Realtime] Socket.IO disconnected:', reason)
         setIsConnected(false)
         setConnectionType('disconnected')
         isConnectingRef.current = false
-        setError('SSE connection error')
-        onError?.(event)
+        messageHandlersRef.current.onDisconnect?.()
 
-        // Fallback to polling
+        // Auto-reconnect logic
+        if (autoReconnect && reason !== 'io client disconnect') {
+          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+            reconnectAttemptsRef.current++
+            const delay = Math.min(reconnectInterval * reconnectAttemptsRef.current, 30000)
+            console.log(`[Realtime] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`)
+            
+            reconnectTimeoutRef.current = setTimeout(() => {
+              if (!isSocketConnected()) {
+                socket.connect()
+              }
+            }, delay)
+          } else {
+            console.log('[Realtime] Max reconnection attempts reached, falling back to polling')
+            fallbackToPolling()
+          }
+        }
+      })
+
+      // Connection errors
+      socket.on('connect_error', (err) => {
+        console.error('[Realtime] Socket.IO connection error:', err.message)
+        setError(err.message)
+        isConnectingRef.current = false
+        messageHandlersRef.current.onError?.(err)
+
+        // Fallback to polling if initial connection fails
+        if (reconnectAttemptsRef.current === 0) {
+          console.log('[Realtime] Initial connection failed, falling back to polling')
+          fallbackToPolling()
+        }
+      })
+
+      // Reconnection events
+      socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('[Realtime] Reconnection attempt:', attemptNumber)
+      })
+
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('[Realtime] Reconnected after', attemptNumber, 'attempts')
+        setError(null)
+        reconnectAttemptsRef.current = 0
+      })
+
+      socket.on('reconnect_failed', () => {
+        console.error('[Realtime] Reconnection failed, falling back to polling')
         fallbackToPolling()
-      }
+      })
 
-    } catch {
-      console.log('Failed to create SSE connection, using polling')
-      setError('Failed to create SSE connection')
+    } catch (err) {
+      console.error('[Realtime] Failed to create Socket.IO connection:', err)
+      setError('Failed to create Socket.IO connection')
       isConnectingRef.current = false
       fallbackToPolling()
     }
-  }, [fingerprint, onMessage, onConnect, onError, onProgress, sseTimeout, fallbackToPolling])
+  }, [fingerprint, autoReconnect, reconnectInterval, maxReconnectAttempts, fallbackToPolling])
 
   // Main connect function
   const connect = useCallback(() => {
-    // Try SSE first, fallback to polling
-    connectSSE()
-  }, [connectSSE])
+    // Try Socket.IO first, with automatic fallback to polling on failure
+    connectSocketIO()
+  }, [connectSocketIO])
 
   const disconnect = useCallback(() => {
+    console.log('[Realtime] Disconnecting...')
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
       reconnectTimeoutRef.current = null
@@ -232,48 +263,51 @@ export function useRealtime({
       pollingTimeoutRef.current = null
     }
 
-    if (sseTimeoutRef.current) {
-      clearTimeout(sseTimeoutRef.current)
-      sseTimeoutRef.current = null
-    }
-
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
+    if (socketRef.current) {
+      disconnectSocket()
+      socketRef.current = null
     }
 
     setIsConnected(false)
     setConnectionType('disconnected')
     isConnectingRef.current = false
     reconnectAttemptsRef.current = 0
-    onDisconnect?.()
-  }, [onDisconnect])
+    messageHandlersRef.current.onDisconnect?.()
+  }, [])
 
   const reconnect = useCallback(() => {
+    console.log('[Realtime] Manual reconnect triggered')
     disconnect()
     reconnectAttemptsRef.current = 0
     setTimeout(() => {
-      if (autoReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
-        reconnectAttemptsRef.current++
-        connect()
-      }
+      connect()
     }, 1000)
-  }, [disconnect, connect, autoReconnect, maxReconnectAttempts])
+  }, [disconnect, connect])
 
   const sendHeartbeat = useCallback((operation: string, progress?: number) => {
-    // Send heartbeat to server for heavy operations
-    fetch('/api/v1/stream/heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fingerprint,
+    if (socketRef.current && isSocketConnected()) {
+      // Send via Socket.IO
+      socketRef.current.emit('heartbeat', {
         operation,
         progress,
         timestamp: Date.now()
       })
-    }).catch(console.warn)
+    } else {
+      // Fallback to HTTP for polling mode
+      fetch('/api/v1/stream/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fingerprint,
+          operation,
+          progress,
+          timestamp: Date.now()
+        })
+      }).catch(console.warn)
+    }
   }, [fingerprint])
 
+  // Auto-connect on mount
   useEffect(() => {
     connect()
 
@@ -282,8 +316,9 @@ export function useRealtime({
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reconnect when fingerprint changes
   useEffect(() => {
-    if (eventSourceRef.current || connectionType === 'polling') {
+    if (socketRef.current || connectionType === 'polling') {
       disconnect()
       connect()
     }
