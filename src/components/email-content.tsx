@@ -65,7 +65,7 @@ export function EmailContent({ selected }: EmailContentProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background animate-[scaleIn_0.2s_ease-out]" key={selected.id}>
       {/* Header */}
       <div className="border-b border-border p-4 bg-card">
         <div className="space-y-2">

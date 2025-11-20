@@ -152,12 +152,22 @@ export function useRealtime({
 
       // Connection established
       socket.on('connect', () => {
-        console.log('[Realtime] Socket.IO connected')
-        setIsConnected(true)
+        console.log('[Realtime] Socket.IO connected:', socket.id)
         const transport = getTransportType()
+        console.log('[Realtime] Transport type:', transport)
+        
+        setIsConnected(true)
         setConnectionType(transport === 'websocket' ? 'websocket' : 'polling')
+        setError(null)
         isConnectingRef.current = false
         reconnectAttemptsRef.current = 0
+        
+        // Stop polling if we connected via Socket.IO
+        if (pollingTimeoutRef.current) {
+          clearTimeout(pollingTimeoutRef.current)
+          pollingTimeoutRef.current = null
+        }
+        
         messageHandlersRef.current.onConnect?.()
       })
 
@@ -309,20 +319,14 @@ export function useRealtime({
 
   // Auto-connect on mount
   useEffect(() => {
-    connect()
+    if (fingerprint) {
+      connect()
+    }
 
     return () => {
       disconnect()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Reconnect when fingerprint changes
-  useEffect(() => {
-    if (socketRef.current || connectionType === 'polling') {
-      disconnect()
-      connect()
-    }
-  }, [fingerprint]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fingerprint, connect, disconnect])
 
   return {
     isConnected,

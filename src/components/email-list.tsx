@@ -159,6 +159,15 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const deleteEmail = useCallback(async (id: string) => {
     if (!fingerprint) return
     
+    // Optimistically remove from UI immediately
+    const emailToDelete = emails.find(e => e.id === id)
+    if (emailToDelete) {
+      setEmails(prev => prev.filter(e => e.id !== id))
+      if (selectedEmailAddress === emailToDelete.address) {
+        onSelectEmail('')
+      }
+    }
+    
     try {
       const response = await fetch(`/api/v1/emails?id=${id}&fingerprint=${fingerprint}`, {
         method: 'DELETE',
@@ -169,6 +178,13 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       })
       
       if (!response.ok) {
+        // Restore email if deletion failed
+        if (emailToDelete) {
+          setEmails(prev => [...prev, emailToDelete].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          ))
+        }
+        
         if (response.status === 429) {
           throw new Error('Rate limit exceeded - please wait a moment')
         }
@@ -176,12 +192,13 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       }
       
       const data = await response.json()
-      if (data.success) {
-        await fetchEmails()
-        if (selectedEmailAddress === emails.find(e => e.id === id)?.address) {
-          onSelectEmail('')
+      if (!data.success) {
+        // Restore email if deletion failed
+        if (emailToDelete) {
+          setEmails(prev => [...prev, emailToDelete].sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          ))
         }
-      } else {
         throw new Error(data.error || 'Failed to delete email')
       }
     } catch (err) {
@@ -191,7 +208,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         setError(err instanceof Error ? err.message : 'Failed to delete email')
       }
     }
-  }, [fingerprint, fetchEmails, selectedEmailAddress, emails, onSelectEmail])
+  }, [fingerprint, emails, selectedEmailAddress, onSelectEmail])
 
   const copyToClipboard = async (text: string, id: string) => {
     try {

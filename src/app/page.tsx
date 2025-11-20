@@ -68,6 +68,7 @@ export default function Home() {
 
   const handleSelectEmail = (address: string) => {
     setSelectedEmailAddress(address)
+    setSelectedMessage(null) // Clear selected message when switching emails
     setSidePanelView('messages')
   }
 
@@ -86,6 +87,7 @@ export default function Home() {
   const handleBackToEmails = () => {
     setSidePanelView('emails')
     setSelectedEmailAddress('')
+    setSelectedMessage(null) // Also clear message when going back
   }
 
   useEffect(() => {
@@ -112,11 +114,11 @@ export default function Home() {
       
 
       
-      {/* Mobile Layout */}
-      <div className="lg:hidden">
+      {/* Mobile Layout - Only for small screens */}
+      <div className="md:hidden">
         {/* Mobile Side Menu with Breadcrumb Navigation */}
         {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 z-50 md:hidden">
             {/* Backdrop with blur */}
             <div 
               className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
@@ -213,7 +215,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Desktop Layout - Hidden on Mobile */}
+      {/* Desktop Layout - 3 columns for large screens */}
       <div className="hidden lg:flex">
         <div className="flex h-[calc(100vh-4rem)] w-full">
           {/* Left: Generated Emails (20%) */}
@@ -247,6 +249,61 @@ export default function Home() {
               <EmailContent selected={selectedMessage} />
             ) : (
               <EmptyState type="select-message" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Medium Layout (Tablet) - 2 columns for medium screens */}
+      <div className="hidden md:flex lg:hidden">
+        <div className="flex h-[calc(100vh-4rem)] w-full">
+          {/* Left: Email List or Messages (40%) */}
+          <div className="w-[40%] border-r border-border">
+            {selectedEmailAddress ? (
+              <div className="h-full flex flex-col">
+                {/* Back button */}
+                <div className="p-3 border-b border-border bg-card">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedEmailAddress('')
+                      setSelectedMessage(null)
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Back to Emails</span>
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <ReceivedEmails
+                    key={`received-emails-md-${refreshKey}`}
+                    fingerprint={fingerprint}
+                    selectedEmailAddress={selectedEmailAddress}
+                    selectedMessage={selectedMessage}
+                    onSelectMessage={handleSelectMessage}
+                  />
+                </div>
+              </div>
+            ) : (
+              <EmailList
+                key={`email-list-md-${refreshKey}`}
+                fingerprint={fingerprint}
+                selectedEmailAddress={selectedEmailAddress}
+                onSelectEmail={handleSelectEmail}
+              />
+            )}
+          </div>
+
+          {/* Right: Email Content (60%) */}
+          <div className="w-[60%]">
+            {selectedMessage ? (
+              <EmailContent selected={selectedMessage} />
+            ) : selectedEmailAddress ? (
+              <EmptyState type="select-message" />
+            ) : (
+              <EmptyState type="welcome" />
             )}
           </div>
         </div>

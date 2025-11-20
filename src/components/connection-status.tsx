@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from 'react'
 import { useRealtimeContext } from '@/contexts/realtime-context'
 import { WifiOff, RefreshCw, Radio } from 'lucide-react'
 import {
@@ -10,8 +11,25 @@ import {
 
 export function ConnectionStatus() {
   const { isConnected, connectionType } = useRealtimeContext()
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const getStatusConfig = () => {
+    if (!isMounted) {
+      return {
+        icon: WifiOff,
+        label: 'Loading...',
+        variant: 'outline' as const,
+        color: 'text-gray-500',
+        bgColor: 'bg-gray-500/10',
+        description: 'Initializing connection...',
+      }
+    }
+
     if (!isConnected) {
       return {
         icon: WifiOff,
@@ -57,6 +75,20 @@ export function ConnectionStatus() {
 
   const config = getStatusConfig()
   const Icon = config.icon
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md">
+        <div className="flex items-center gap-1.5 text-gray-500">
+          <WifiOff className="h-4 w-4 animate-pulse" />
+          <span className="text-sm font-medium hidden sm:inline">
+            Loading...
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <DropdownMenu>
