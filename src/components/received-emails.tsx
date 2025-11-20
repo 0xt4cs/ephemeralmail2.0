@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { 
   Search, 
-  RefreshCw, 
-  Mail, 
   Paperclip,
   Calendar,
   User
 } from 'lucide-react'
+import { MessageSkeletonLoader } from '@/components/skeleton-loader'
+import { EmptyState } from '@/components/empty-state'
 import { useRealtimeContext } from '@/contexts/realtime-context'
 
 interface ReceivedEmail {
@@ -147,12 +147,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
 
   if (!selectedEmailAddress) {
     return (
-      <div className="h-full flex items-center justify-center text-muted-foreground">
-        <div className="text-center">
-          <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>Select an email address to view received messages</p>
-        </div>
-      </div>
+      <EmptyState type="select-email" />
     )
   }
 
@@ -191,19 +186,17 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       {/* Email List */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <MessageSkeletonLoader count={4} />
         ) : filteredEmails.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground p-4">
-            <Mail className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">
-              {searchTerm ? 'No messages match your search' : 'No messages received yet'}
-            </p>
-            <p className="text-xs">
-              {searchTerm ? 'Try a different search term' : 'Messages will appear here when received'}
-            </p>
-          </div>
+          searchTerm ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground p-4">
+              <Search className="h-8 w-8 mb-2 opacity-50" />
+              <p className="text-sm">No messages match your search</p>
+              <p className="text-xs">Try a different search term</p>
+            </div>
+          ) : (
+            <EmptyState type="no-messages" />
+          )
         ) : (
           <div className="p-2 space-y-2">
             {filteredEmails.map((email) => (

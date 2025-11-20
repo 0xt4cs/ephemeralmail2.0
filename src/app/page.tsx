@@ -5,8 +5,9 @@ import { EmailList } from '@/components/email-list'
 import { ReceivedEmails } from '@/components/received-emails'
 import { EmailContent } from '@/components/email-content'
 import { Header } from '@/components/header'
+import { EmptyState } from '@/components/empty-state'
 import { getOrCreateClientFingerprint } from '@/lib/utils'
-import { X, Menu, ArrowLeft, Mail } from 'lucide-react'
+import { X, ArrowLeft, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { RealtimeProvider } from '@/contexts/realtime-context'
 
@@ -116,14 +117,18 @@ export default function Home() {
         {/* Mobile Side Menu with Breadcrumb Navigation */}
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 lg:hidden">
-            {/* Backdrop */}
+            {/* Backdrop with blur */}
             <div 
-              className="fixed inset-0 bg-black/50"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
               onClick={() => setMobileMenuOpen(false)}
+              style={{ animation: 'fadeIn 0.3s ease-out' }}
             />
             
-            {/* Side Menu */}
-            <div className="fixed left-0 top-0 h-full w-80 bg-background border-r border-border shadow-lg">
+            {/* Side Menu with slide animation */}
+            <div 
+              className="fixed left-0 top-0 h-full w-80 bg-background border-r border-border shadow-2xl transition-transform duration-300 ease-out"
+              style={{ animation: 'slideInLeft 0.3s ease-out' }}
+            >
               <div className="flex flex-col h-full">
                 {/* Menu Header with Breadcrumb */}
                 <div className="p-4 border-b border-border">
@@ -203,13 +208,7 @@ export default function Home() {
           {selectedMessage ? (
             <EmailContent selected={selectedMessage} />
           ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <Menu className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">Welcome to EphemeralMail</p>
-                <p className="text-sm">Tap the menu button to get started</p>
-              </div>
-            </div>
+            <EmptyState type="welcome" />
           )}
         </div>
       </div>
@@ -217,8 +216,8 @@ export default function Home() {
       {/* Desktop Layout - Hidden on Mobile */}
       <div className="hidden lg:flex">
         <div className="flex h-[calc(100vh-4rem)] w-full">
-          {/* Left: Generated Emails (15%) */}
-          <div className="w-[15%] border-r border-border">
+          {/* Left: Generated Emails (20%) */}
+          <div className="w-[20%] border-r border-border">
             <EmailList
               key={`email-list-${refreshKey}`}
               fingerprint={fingerprint}
@@ -227,8 +226,8 @@ export default function Home() {
             />
           </div>
 
-          {/* Middle: Emails Received (20%) */}
-          <div className="w-[20%] border-r border-border">
+          {/* Middle: Emails Received (25%) */}
+          <div className="w-[25%] border-r border-border">
             {selectedEmailAddress ? (
               <ReceivedEmails
                 key={`received-emails-${refreshKey}`}
@@ -238,24 +237,16 @@ export default function Home() {
                 onSelectMessage={handleSelectMessage}
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <div className="text-center">
-                  <p>Select an email address to view messages</p>
-                </div>
-              </div>
+              <EmptyState type="select-email" />
             )}
           </div>
 
-          {/* Right: Email Content (65%) */}
-          <div className="w-[65%]">
+          {/* Right: Email Content (55%) */}
+          <div className="w-[55%]">
             {selectedMessage ? (
               <EmailContent selected={selectedMessage} />
             ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <div className="text-center">
-                  <p>Select a message to view content</p>
-                </div>
-              </div>
+              <EmptyState type="select-message" />
             )}
           </div>
         </div>

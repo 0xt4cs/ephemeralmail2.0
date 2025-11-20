@@ -3,17 +3,19 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { 
   Plus, 
   Copy, 
   Trash2, 
   RefreshCw, 
-  Mail,
   Sparkles,
   Check
 } from 'lucide-react'
 import { retryRequest } from '@/lib/connectivity-utils'
 import { ProgressIndicator } from '@/components/progress-indicator'
+import { EmailSkeletonLoader } from '@/components/skeleton-loader'
+import { EmptyState } from '@/components/empty-state'
 import { useRealtimeContext } from '@/contexts/realtime-context'
 
 interface Email {
@@ -35,6 +37,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [customEmail, setCustomEmail] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const { currentProgress, sendHeartbeat } = useRealtimeContext() 
 
   const fetchEmails = useCallback(async () => {
@@ -200,11 +203,43 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     }
   }
 
+  // Fetch unread counts for all emails
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!fingerprint || emails.length === 0) return
+    
+    const counts: Record<string, number> = {}
+    
+    for (const email of emails) {
+      try {
+        const response = await fetch(
+          `/api/v1/received?fingerprint=${fingerprint}&email=${encodeURIComponent(email.address)}`,
+          { signal: AbortSignal.timeout(5000) }
+        )
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            counts[email.address] = data.data.items?.length || 0
+          }
+        }
+      } catch {
+        // Silently fail for individual email counts
+      }
+    }
+    
+    setUnreadCounts(counts)
+  }, [fingerprint, emails])
+
   useEffect(() => {
     if (fingerprint) {
       fetchEmails()
     }
   }, [fingerprint, fetchEmails])
+
+  useEffect(() => {
+    if (emails.length > 0) {
+      fetchUnreadCounts()
+    }
+  }, [emails.length, fetchUnreadCounts])
 
 
   return (
@@ -267,15 +302,9 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       {/* Email List */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <EmailSkeletonLoader count={5} />
         ) : emails.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground p-4">
-            <Mail className="h-8 w-8 mb-2 opacity-50" />
-            <p className="text-sm">No email addresses yet</p>
-            <p className="text-xs">Generate your first email address to get started</p>
-          </div>
+          <EmptyState type="no-emails" />
         ) : (
           <div className="p-2 space-y-2">
             {emails.map((email) => (
@@ -290,12 +319,19 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
               >
                 {/* Email Address */}
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-medium text-sm truncate ${
-                      selectedEmailAddress === email.address ? 'text-primary' : ''
-                    }`}>
-                      {email.address}
-                    </p>
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-2">
+                      <p className={`font-medium text-sm truncate ${
+                        selectedEmailAddress === email.address ? 'text-primary' : ''
+                      }`}>
+                        {email.address}
+                      </p>
+                      {unreadCounts[email.address] > 0 && (
+                        <Badge variant="default" className="h-5 px-1.5 text-xs shrink-0">
+                          {unreadCounts[email.address]}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Created {new Date(email.createdAt).toLocaleDateString()}
                     </p>
