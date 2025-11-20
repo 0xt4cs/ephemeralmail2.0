@@ -32,7 +32,7 @@ export default function Home() {
   const [selectedMessage, setSelectedMessage] = useState<ReceivedEmail | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidePanelView, setSidePanelView] = useState<'emails' | 'messages'>('emails')
-  const [refreshKey, setRefreshKey] = useState<number>(0)
+  // refreshKey removed - Socket.IO handles real-time updates automatically
 
   useEffect(() => {
     const fp = getOrCreateClientFingerprint()
@@ -56,19 +56,15 @@ export default function Home() {
     }
   }, [])
 
-  const handleRefresh = () => {
-    const newFingerprint = getOrCreateClientFingerprint()
-    setFingerprint(newFingerprint)
-    setSelectedEmailAddress('')
-    setSelectedMessage(null)
-    setRefreshKey(prev => prev + 1)
-  }
+  // Remove handleRefresh - no longer needed with real-time Socket.IO updates
 
 
 
   const handleSelectEmail = (address: string) => {
+    // ALWAYS clear the selected message first, even if switching to the same email
+    setSelectedMessage(null)
+    // Then set the new email address
     setSelectedEmailAddress(address)
-    setSelectedMessage(null) // Clear selected message when switching emails
     setSidePanelView('messages')
   }
 
@@ -108,7 +104,6 @@ export default function Home() {
     <RealtimeProvider fingerprint={fingerprint}>
       <div className="min-h-screen bg-background">
         <Header 
-          onRefresh={handleRefresh} 
           onMenuToggle={toggleMobileMenu} 
         />
       
@@ -156,7 +151,6 @@ export default function Home() {
                   {sidePanelView === 'emails' && (
                     <div className="h-full">
                       <EmailList
-                        key={`mobile-email-list-${refreshKey}`}
                         fingerprint={fingerprint}
                         selectedEmailAddress={selectedEmailAddress}
                         onSelectEmail={handleSelectEmail}
@@ -183,7 +177,6 @@ export default function Home() {
                       <div className="h-[calc(100%-4rem)]">
                         {selectedEmailAddress ? (
                           <ReceivedEmails
-                            key={`mobile-received-emails-${refreshKey}`}
                             fingerprint={fingerprint}
                             selectedEmailAddress={selectedEmailAddress}
                             selectedMessage={selectedMessage}
@@ -221,7 +214,6 @@ export default function Home() {
           {/* Left: Generated Emails (20%) */}
           <div className="w-[20%] border-r border-border">
             <EmailList
-              key={`email-list-${refreshKey}`}
               fingerprint={fingerprint}
               selectedEmailAddress={selectedEmailAddress}
               onSelectEmail={handleSelectEmail}
@@ -232,7 +224,6 @@ export default function Home() {
           <div className="w-[25%] border-r border-border">
             {selectedEmailAddress ? (
               <ReceivedEmails
-                key={`received-emails-${refreshKey}`}
                 fingerprint={fingerprint}
                 selectedEmailAddress={selectedEmailAddress}
                 selectedMessage={selectedMessage}
@@ -278,7 +269,6 @@ export default function Home() {
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <ReceivedEmails
-                    key={`received-emails-md-${refreshKey}`}
                     fingerprint={fingerprint}
                     selectedEmailAddress={selectedEmailAddress}
                     selectedMessage={selectedMessage}
@@ -288,7 +278,6 @@ export default function Home() {
               </div>
             ) : (
               <EmailList
-                key={`email-list-md-${refreshKey}`}
                 fingerprint={fingerprint}
                 selectedEmailAddress={selectedEmailAddress}
                 onSelectEmail={handleSelectEmail}

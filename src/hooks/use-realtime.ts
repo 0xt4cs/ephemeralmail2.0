@@ -152,9 +152,14 @@ export function useRealtime({
 
       // Connection established
       socket.on('connect', () => {
-        console.log('[Realtime] Socket.IO connected:', socket.id)
+        console.log('[Realtime] ✅ Socket.IO connected - Socket ID:', socket.id)
         const transport = getTransportType()
-        console.log('[Realtime] Transport type:', transport)
+        console.log('[Realtime] 🚀 Transport type:', transport)
+        console.log('[Realtime] 📡 Connection details:', {
+          connected: socket.connected,
+          id: socket.id,
+          transport: socket.io.engine?.transport?.name || 'unknown'
+        })
         
         setIsConnected(true)
         setConnectionType(transport === 'websocket' ? 'websocket' : 'polling')

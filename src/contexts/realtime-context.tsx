@@ -32,7 +32,7 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
   const { isConnected, connectionType, lastMessage, sendHeartbeat } = useRealtime({
     fingerprint,
     onMessage: (message) => {
-      console.log('[RealtimeContext] Message received:', message.type)
+      console.log('[RealtimeContext] 📨 Message received:', message.type)
       
       // Handle different message types
       switch (message.type) {
@@ -55,15 +55,24 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
       setCurrentProgress(progress)
     },
     onConnect: () => {
-      console.log('[RealtimeContext] Connection established')
+      console.log('[RealtimeContext] ✅ Connection established - isConnected: true')
     },
     onDisconnect: () => {
-      console.log('[RealtimeContext] Connection lost')
+      console.log('[RealtimeContext] ❌ Connection lost - isConnected: false')
     },
     onError: (error) => {
-      console.error('[RealtimeContext] Connection error:', error)
+      console.error('[RealtimeContext] ⚠️ Connection error:', error)
     }
   })
+
+  // Debug log connection state changes
+  useEffect(() => {
+    console.log('[RealtimeContext] 📊 Connection state changed:', {
+      isConnected,
+      connectionType,
+      timestamp: new Date().toISOString()
+    })
+  }, [isConnected, connectionType])
 
   const registerRefreshCallback = (callback: () => void) => {
     setRefreshCallbacks(prev => [...prev, callback])

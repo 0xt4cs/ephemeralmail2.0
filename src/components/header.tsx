@@ -2,15 +2,14 @@
 
 import { ThemeToggle } from './theme-toggle'
 import { ConnectionStatus } from './connection-status'
-import { RefreshCw, Mail, Menu } from 'lucide-react'
+import { Mail, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type HeaderProps = {
-  onRefresh?: () => void
   onMenuToggle?: () => void
 }
 
-export function Header({ onRefresh, onMenuToggle }: HeaderProps) {
+export function Header({ onMenuToggle }: HeaderProps) {
   return (
     <header className="border-b border-border bg-card h-16 flex items-center justify-between px-6">
       <div className="flex items-center gap-3">
@@ -34,13 +33,7 @@ export function Header({ onRefresh, onMenuToggle }: HeaderProps) {
       
       <div className="flex items-center gap-3">
         <ConnectionStatus />
-        <button
-          onClick={onRefresh}
-          className="flex items-center gap-2 px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-        >
-          <RefreshCw className="h-4 w-4" />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
+        {/* Refresh button removed - real-time updates via Socket.IO make manual refresh unnecessary */}
         <ThemeToggle />
       </div>
     </header>

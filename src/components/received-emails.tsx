@@ -165,15 +165,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
           />
         </div>
 
-        {/* Manual Refresh */}
-        <div className="mt-3 flex justify-end">
-          <button
-            className="text-xs text-primary hover:underline"
-            onClick={fetchEmails}
-          >
-            Refresh
-          </button>
-        </div>
+        {/* Manual Refresh button removed - real-time Socket.IO updates handle this automatically */}
 
         {/* Error Display */}
         {error && (
