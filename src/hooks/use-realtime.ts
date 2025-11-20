@@ -90,7 +90,16 @@ export function useRealtime({
   const fallbackToPolling = useCallback(() => {
     if (connectionType === 'polling') return
     
-    console.log('[Realtime] Starting polling fallback')
+    console.log('[Realtime] 🔄 Starting polling fallback')
+    
+    // CRITICAL: Disconnect Socket.IO completely to prevent race condition
+    if (socketRef.current) {
+      console.log('[Realtime] ⚠️ Disconnecting Socket.IO before starting polling')
+      socketRef.current.removeAllListeners() // Remove all event listeners
+      socketRef.current.disconnect() // Disconnect the socket
+      socketRef.current = null // Clear the reference
+    }
+    
     setConnectionType('polling')
     setIsConnected(true)
     setError(null)
@@ -196,7 +205,14 @@ export function useRealtime({
 
       // Disconnection
       socket.on('disconnect', (reason) => {
-        console.log('[Realtime] Socket.IO disconnected:', reason)
+        console.log('[Realtime] 🔌 Socket.IO disconnected:', reason)
+        
+        // If we're in polling mode, don't try to reconnect via Socket.IO
+        if (connectionType === 'polling') {
+          console.log('[Realtime] ⚠️ Already in polling mode, ignoring Socket.IO disconnect')
+          return
+        }
+        
         setIsConnected(false)
         setConnectionType('disconnected')
         isConnectingRef.current = false
@@ -207,7 +223,7 @@ export function useRealtime({
           if (reconnectAttemptsRef.current < maxReconnectAttempts) {
             reconnectAttemptsRef.current++
             const delay = Math.min(reconnectInterval * reconnectAttemptsRef.current, 30000)
-            console.log(`[Realtime] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`)
+            console.log(`[Realtime] 🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`)
             
             reconnectTimeoutRef.current = setTimeout(() => {
               if (!isSocketConnected()) {
@@ -215,7 +231,8 @@ export function useRealtime({
               }
             }, delay)
           } else {
-            console.log('[Realtime] Max reconnection attempts reached, falling back to polling')
+            console.log('[Realtime] ⚠️ Max reconnection attempts reached, falling back to polling')
+            socket.io.opts.reconnection = false
             fallbackToPolling()
           }
         }
@@ -223,14 +240,16 @@ export function useRealtime({
 
       // Connection errors
       socket.on('connect_error', (err) => {
-        console.error('[Realtime] Socket.IO connection error:', err.message)
+        console.error('[Realtime] ❌ Socket.IO connection error:', err.message)
         setError(err.message)
         isConnectingRef.current = false
         messageHandlersRef.current.onError?.(err)
 
         // Fallback to polling if initial connection fails
         if (reconnectAttemptsRef.current === 0) {
-          console.log('[Realtime] Initial connection failed, falling back to polling')
+          console.log('[Realtime] ⚠️ Initial connection failed, falling back to polling')
+          // Disable Socket.IO auto-reconnect before fallback
+          socket.io.opts.reconnection = false
           fallbackToPolling()
         }
       })
@@ -247,17 +266,19 @@ export function useRealtime({
       })
 
       socket.on('reconnect_failed', () => {
-        console.error('[Realtime] Reconnection failed, falling back to polling')
+        console.error('[Realtime] ❌ Reconnection failed, falling back to polling')
+        // Disable Socket.IO auto-reconnect before fallback
+        socket.io.opts.reconnection = false
         fallbackToPolling()
       })
 
     } catch (err) {
-      console.error('[Realtime] Failed to create Socket.IO connection:', err)
+      console.error('[Realtime] ❌ Failed to create Socket.IO connection:', err)
       setError('Failed to create Socket.IO connection')
       isConnectingRef.current = false
       fallbackToPolling()
     }
-  }, [fingerprint, autoReconnect, reconnectInterval, maxReconnectAttempts, fallbackToPolling])
+  }, [fingerprint, autoReconnect, reconnectInterval, maxReconnectAttempts, fallbackToPolling, connectionType])
 
   // Main connect function
   const connect = useCallback(() => {

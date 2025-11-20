@@ -2,11 +2,8 @@
 
 EphemeralMail is a temporary email system for developers and users needing disposable email addresses.
 
-## 🧑‍💻 Developer
 
-Developed by [@0xt4cs](https://github.com/0xt4cs)
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -54,7 +51,7 @@ Developed by [@0xt4cs](https://github.com/0xt4cs)
     npm run start-email-server # In a separate terminal
     ```
 
-## 🌐 API Usage
+## API Usage
 
 Base URL: `YOUR_APP_URL/api/v1`
 
@@ -72,14 +69,14 @@ All API responses follow this JSON structure:
 }
 ```
 
-## 🔓 Public API (No Authentication Required)
+## Public API (No Authentication Required)
 
 **Features:**
-- ✅ No rate limits
-- ✅ No API keys required
-- ✅ CORS enabled for all domains
-- ✅ Instant email generation
-- ✅ Full CRUD operations
+- No rate limits
+- No API keys required
+- CORS enabled for all domains
+- Instant email generation
+- Full CRUD operations
 
 ### 1. Generate Email Address
 
@@ -290,14 +287,14 @@ curl -X PATCH https://DOMAIN/api/v1/public/emails/recover \
 }
 ```
 
-## 🗑️ Deletion Mechanism
+## Deletion Mechanism
 
 - **Soft Delete**: Emails are marked as inactive but not permanently removed
 - **Recovery**: Soft-deleted emails can be recovered within 14 days
 - **Hard Delete**: Emails are permanently deleted after 14 days
 - **Public API**: Only emails created via public API can be managed via public API
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
