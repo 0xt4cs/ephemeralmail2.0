@@ -122,7 +122,7 @@ export function useRealtime({
         const response = await fetch(`/api/v1/stream/poll?fingerprint=${encodeURIComponent(fingerprint)}&lastUpdate=${lastPollTimeRef.current}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(10000)
+          signal: AbortSignal.timeout(30000) // Increased to 30 seconds
         })
         
         if (response.ok) {
@@ -138,9 +138,15 @@ export function useRealtime({
             messageHandlersRef.current.onMessage?.(message)
             lastPollTimeRef.current = Date.now()
           }
+        } else {
+          console.warn('[Realtime] Polling response not OK:', response.status)
         }
       } catch (err) {
-        console.warn('[Realtime] Polling failed:', err)
+        if (err instanceof Error && err.name === 'TimeoutError') {
+          console.warn('[Realtime] ⚠️ Polling timeout - server may be slow')
+        } else {
+          console.warn('[Realtime] Polling failed:', err)
+        }
       }
       
       // Schedule next poll

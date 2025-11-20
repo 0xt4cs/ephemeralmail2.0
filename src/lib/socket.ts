@@ -80,9 +80,11 @@ export function createSocket(fingerprint: string): Socket {
   })
 
   // Monitor transport upgrades
-  socket.io.engine.on('upgrade', (transport) => {
-    console.log('[Socket.IO Client] Transport upgraded to:', transport.name)
-  })
+  if (socket.io?.engine) {
+    socket.io.engine.on('upgrade', (transport) => {
+      console.log('[Socket.IO Client] Transport upgraded to:', transport.name)
+    })
+  }
 
   return socket
 }

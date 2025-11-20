@@ -17,6 +17,7 @@ import { ProgressIndicator } from '@/components/progress-indicator'
 import { EmailSkeletonLoader } from '@/components/skeleton-loader'
 import { EmptyState } from '@/components/empty-state'
 import { useRealtimeContext } from '@/contexts/realtime-context'
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 
 interface Email {
   id: string
@@ -38,6 +39,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [emailToDelete, setEmailToDelete] = useState<{ id: string; address: string } | null>(null)
   const { currentProgress, sendHeartbeat } = useRealtimeContext() 
 
   const fetchEmails = useCallback(async () => {
@@ -160,10 +163,10 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     if (!fingerprint) return
     
     // Optimistically remove from UI immediately
-    const emailToDelete = emails.find(e => e.id === id)
-    if (emailToDelete) {
+    const emailToRemove = emails.find(e => e.id === id)
+    if (emailToRemove) {
       setEmails(prev => prev.filter(e => e.id !== id))
-      if (selectedEmailAddress === emailToDelete.address) {
+      if (selectedEmailAddress === emailToRemove.address) {
         onSelectEmail('')
       }
     }
@@ -179,8 +182,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       
       if (!response.ok) {
         // Restore email if deletion failed
-        if (emailToDelete) {
-          setEmails(prev => [...prev, emailToDelete].sort((a, b) => 
+        if (emailToRemove) {
+          setEmails(prev => [...prev, emailToRemove].sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           ))
         }
@@ -194,8 +197,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       const data = await response.json()
       if (!data.success) {
         // Restore email if deletion failed
-        if (emailToDelete) {
-          setEmails(prev => [...prev, emailToDelete].sort((a, b) => 
+        if (emailToRemove) {
+          setEmails(prev => [...prev, emailToRemove].sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           ))
         }
@@ -209,6 +212,19 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       }
     }
   }, [fingerprint, emails, selectedEmailAddress, onSelectEmail])
+
+  const handleDeleteClick = (email: { id: string; address: string }) => {
+    setEmailToDelete(email)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = () => {
+    if (emailToDelete) {
+      deleteEmail(emailToDelete.id)
+      setDeleteDialogOpen(false)
+      setEmailToDelete(null)
+    }
+  }
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -354,33 +370,35 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
                     </p>
                   </div>
                   
-                  {/* Action Buttons */}
-                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Action Buttons - Always visible on mobile, hover on desktop */}
+                  <div className="flex items-center space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0"
+                      className="h-7 w-7 p-0"
                       onClick={(e: React.MouseEvent) => {
                         e.stopPropagation()
                         copyToClipboard(email.address, email.id)
                       }}
+                      title="Copy to clipboard"
                     >
                       {copiedId === email.id ? (
-                        <Check className="h-3 w-3 text-green-500" />
+                        <Check className="h-3.5 w-3.5 text-green-500" />
                       ) : (
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-3.5 w-3.5" />
                       )}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={(e: React.MouseEvent) => {
                         e.stopPropagation()
-                        deleteEmail(email.id)
+                        handleDeleteClick({ id: email.id, address: email.address })
                       }}
+                      title="Delete email"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -396,6 +414,14 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
           {emails.length} of 10 addresses used
         </p>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={confirmDelete}
+        emailAddress={emailToDelete?.address || ''}
+      />
     </div>
   )
 } 
