@@ -48,7 +48,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   
   // Prevent race conditions with ref to track ongoing operations
   const fetchingRef = useRef(false)
-  const generatingRef = useRef(false) 
+  const generatingRef = useRef(false)
+  const lastGenerateTimeRef = useRef(0) // Debounce timestamp 
 
   const fetchEmails = useCallback(async () => {
     if (!fingerprint) return
@@ -102,6 +103,13 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
 
   const generateEmail = useCallback(async (custom?: string) => {
     if (!fingerprint) return
+    
+    // Debounce: Prevent rapid clicks (500ms minimum between requests)
+    const now = Date.now()
+    if (now - lastGenerateTimeRef.current < 500) {
+      return
+    }
+    lastGenerateTimeRef.current = now
     
     // Prevent concurrent generation (race condition fix)
     if (generatingRef.current) {
@@ -311,6 +319,21 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     }
   }, [])
 
+  const handleCustomEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove underscores as they're uncommon in email addresses
+    const value = e.target.value.replace(/_/g, '')
+    setCustomEmail(value)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault() // Prevent form submission
+      if (!generating && fingerprint && customEmail) {
+        generateEmail(customEmail)
+      }
+    }
+  }
+
 
   return (
     <div className="h-full flex flex-col bg-card">
@@ -322,7 +345,8 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
             <Input
               placeholder="Custom prefix (optional)"
               value={customEmail}
-              onChange={(e) => setCustomEmail(e.target.value)}
+              onChange={handleCustomEmailChange}
+              onKeyDown={handleKeyDown}
               className="flex-1 text-sm"
               disabled={generating}
             />

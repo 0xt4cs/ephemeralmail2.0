@@ -30,12 +30,23 @@ export function generateRandomEmail(): string {
     'panther','shark','owl','hawk','viper','stallion','cougar','lynx','crane','heron',
     'raven','crow','leopard','buffalo','mustang','dolphin','seal','whale','goose','sparrow',
     'badger','moose','antelope','jackal','camel','bat','moth','beetle','ram','python'
-  ]  
-  const sep = ['','-','_','.'][randomInt(4)]
+  ]
+  
   const adjective = adjectives[randomInt(adjectives.length)]
   const noun = nouns[randomInt(nouns.length)]
   const number = (100 + randomInt(900)).toString()
-  return `${adjective}${sep}${noun}${number}@whitebooking.com`
+  const sep = randomInt(2) === 0 ? '.' : ''
+  const patterns = [
+    `${adjective}${sep}${noun}${sep}${number}`,
+    `${noun}${sep}${adjective}${sep}${number}`,
+    `${number}${sep}${adjective}${sep}${noun}`,
+    `${adjective}${sep}${number}${sep}${noun}`,
+    `${noun}${sep}${number}${sep}${adjective}`,
+    `${number}${sep}${noun}${sep}${adjective}`
+  ]
+  
+  const emailPrefix = patterns[randomInt(patterns.length)]
+  return `${emailPrefix}@whitebooking.com`
 }
 
 export function formatDate(date: Date): string {
