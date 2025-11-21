@@ -35,14 +35,17 @@ export function generateRandomEmail(): string {
   const adjective = adjectives[randomInt(adjectives.length)]
   const noun = nouns[randomInt(nouns.length)]
   const number = (100 + randomInt(900)).toString()
-  const sep = randomInt(2) === 0 ? '.' : ''
+  
+  // Randomly choose pattern with ONE separator in the middle
   const patterns = [
-    `${adjective}${sep}${noun}${sep}${number}`,
-    `${noun}${sep}${adjective}${sep}${number}`,
-    `${number}${sep}${adjective}${sep}${noun}`,
-    `${adjective}${sep}${number}${sep}${noun}`,
-    `${noun}${sep}${number}${sep}${adjective}`,
-    `${number}${sep}${noun}${sep}${adjective}`
+    `${adjective}.${noun}${number}`,    // adjective.noun123
+    `${noun}.${adjective}${number}`,    // noun.adjective123
+    `${adjective}.${number}${noun}`,    // adjective.123noun
+    `${noun}.${number}${adjective}`,    // noun.123adjective
+    `${number}.${adjective}${noun}`,    // 123.adjectivenoun
+    `${number}.${noun}${adjective}`,    // 123.nounadjective
+    `${adjective}${noun}.${number}`,    // adjectivenoun.123
+    `${noun}${adjective}.${number}`,    // nounadjective.123
   ]
   
   const emailPrefix = patterns[randomInt(patterns.length)]

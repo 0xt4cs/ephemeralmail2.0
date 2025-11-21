@@ -44,7 +44,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [emailToDelete, setEmailToDelete] = useState<{ id: string; address: string } | null>(null)
-  const { currentProgress, sendHeartbeat } = useRealtimeContext()
+  const { currentProgress, sendHeartbeat, registerRefreshCallback } = useRealtimeContext()
   
   // Prevent race conditions with ref to track ongoing operations
   const fetchingRef = useRef(false)
@@ -300,6 +300,17 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       fetchEmails()
     }
   }, [fingerprint, fetchEmails])
+
+  // Register for realtime refresh callbacks (so email list updates after generation)
+  useEffect(() => {
+    if (!fingerprint) return
+    
+    const unregister = registerRefreshCallback(() => {
+      fetchEmails()
+    })
+    
+    return unregister
+  }, [fingerprint, registerRefreshCallback, fetchEmails])
 
   useEffect(() => {
     if (emails.length > 0) {
