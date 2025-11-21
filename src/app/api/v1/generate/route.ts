@@ -35,7 +35,16 @@ export async function POST(request: NextRequest) {
       session = await prisma.session.create({ data: { fingerprint, emailCount: 0 }, include: { emails: true } })
     }
 
-    if (session.emailCount >= 10) {
+    // Count only active (non-deleted) emails
+    const activeEmailCount = await prisma.email.count({
+      where: {
+        sessionId: session.id,
+        deletedAt: null,
+        expiresAt: { gt: new Date() }
+      }
+    })
+
+    if (activeEmailCount >= 10) {
       return errorJson(429, 'Email limit reached (10 emails per session)')
     }
 
