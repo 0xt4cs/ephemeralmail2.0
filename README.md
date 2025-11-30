@@ -60,12 +60,7 @@ All API responses follow this JSON structure:
 ```json
 {
   "success": boolean,
-  "data": { ... },
-  "message": "string",
-  "meta": {
-    "timestamp": "ISO string",
-    "credits": "EphemeralMail by @0xt4cs - https://github.com/0xt4cs"
-  }
+  "data": { ... }
 }
 ```
 
@@ -103,24 +98,54 @@ curl -X POST https://DOMAIN/v1/public/generate \
   "data": {
     "id": "clx1234567890",
     "address": "testuser123@DOMAIN",
-    "createdAt": "2025-08-11T10:30:00.000Z",
-    "expiresAt": "2025-08-25T10:30:00.000Z",
-    "isActive": true,
-    "generatedBy": "public-api"
-  },
-  "meta": {
-    "timestamp": "2025-08-11T10:30:00.000Z",
-    "credits": "EphemeralMail by @0xt4cs - https://github.com/0xt4cs"
+    "createdAt": "2025-11-30T10:30:00.000Z",
+    "expiresAt": "2025-12-14T10:30:00.000Z",
+    "isActive": true
   }
 }
 ```
 
 **Notes:**
 - If `customEmail` is not provided, a random email will be generated
-- Custom emails must contain only letters, numbers, dots, underscores, and hyphens
+- Custom emails must contain only letters, numbers, dots, and hyphens
 - Emails expire after 14 days
 
-### 2. Check Email Existence
+### 2. List All Emails
+
+**Endpoint:** `GET /api/v1/public/list`
+
+**Query Parameters:**
+- `limit` (optional): Number of results (default: 50, max: 100)
+- `cursor` (optional): Pagination cursor
+
+**Example Request:**
+```bash
+curl "https://DOMAIN/api/v1/public/list?limit=10"
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "clx1234567890",
+        "address": "test123@DOMAIN",
+        "createdAt": "2025-11-30T10:00:00.000Z",
+        "isActive": true
+      }
+    ],
+    "pagination": {
+      "total": 142,
+      "limit": 10,
+      "nextCursor": "cm123..."
+    }
+  }
+}
+```
+
+### 3. Check Email Existence
 
 **Endpoint:** `GET /api/v1/public/emails`
 
@@ -141,19 +166,19 @@ curl "https://DOMAIN/api/v1/public/emails?email=testuser123@DOMAIN"
     "emailAddress": "testuser123@DOMAIN",
     "isActive": true,
     "isDeleted": false,
-    "isRecovered": false,
-    "createdAt": "2025-08-11T10:30:00.000Z",
-    "expiresAt": "2025-08-25T10:30:00.000Z"
+    "createdAt": "2025-11-30T10:30:00.000Z",
+    "expiresAt": "2025-12-14T10:30:00.000Z"
   }
 }
 ```
 
-### 3. Get Received Emails
+### 4. Get Received Emails
 
 **Endpoint:** `GET /api/v1/public/received`
 
 **Query Parameters:**
 - `email` (required): The email address to check for received messages
+- `limit` (optional): Number of results (default: 50)
 
 **Example Request:**
 ```bash
@@ -180,19 +205,18 @@ curl "https://DOMAIN/api/v1/public/received?email=testuser123@DOMAIN"
             "type": "application/pdf"
           }
         ],
-        "receivedAt": "2025-08-11T11:00:00.000Z"
+        "receivedAt": "2025-11-30T11:00:00.000Z"
       }
     ],
     "meta": {
       "total": 1,
-      "email": "testuser123@DOMAIN",
-      "timestamp": "2025-08-11T11:00:00.000Z"
+      "email": "testuser123@DOMAIN"
     }
   }
 }
 ```
 
-### 4. Delete Email (Soft Delete)
+### 5. Delete Email (Soft Delete)
 
 **Endpoint:** `DELETE /api/v1/public/emails/delete`
 
@@ -215,14 +239,14 @@ curl -X DELETE https://DOMAIN/api/v1/public/emails/delete \
 {
   "success": true,
   "data": {
-    "message": "Public email soft deleted successfully. It will be permanently deleted after 14 days.",
-    "emailAddress": "testuser123@DOMAIN",
-    "deletedAt": "2025-08-11T12:00:00.000Z"
+    "message": "Email soft deleted successfully",
+    "address": "testuser123@DOMAIN",
+    "deletedAt": "2025-11-30T12:00:00.000Z"
   }
 }
 ```
 
-### 5. Recover Deleted Email
+### 6. Recover Deleted Email
 
 **Endpoint:** `PATCH /api/v1/public/emails/recover`
 
@@ -245,9 +269,9 @@ curl -X PATCH https://DOMAIN/api/v1/public/emails/recover \
 {
   "success": true,
   "data": {
-    "message": "Public email recovered successfully",
-    "emailAddress": "testuser123@DOMAIN",
-    "recoveredAt": "2025-08-11T12:30:00.000Z"
+    "message": "Email recovered successfully",
+    "address": "testuser123@DOMAIN",
+    "recoveredAt": "2025-11-30T12:30:00.000Z"
   }
 }
 ```
@@ -292,7 +316,6 @@ curl -X PATCH https://DOMAIN/api/v1/public/emails/recover \
 - **Soft Delete**: Emails are marked as inactive but not permanently removed
 - **Recovery**: Soft-deleted emails can be recovered within 14 days
 - **Hard Delete**: Emails are permanently deleted after 14 days
-- **Public API**: Only emails created via public API can be managed via public API
 
 ## License
 
