@@ -51,11 +51,11 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const generatingRef = useRef(false)
   const lastGenerateTimeRef = useRef(0) // Debounce timestamp 
 
-  const fetchEmails = useCallback(async () => {
+  const fetchEmails = useCallback(async (forceRefresh = false) => {
     if (!fingerprint) return
     
-    // Prevent concurrent fetches (race condition fix)
-    if (fetchingRef.current) {
+    // Prevent concurrent fetches (race condition fix) unless forced
+    if (fetchingRef.current && !forceRefresh) {
       return
     }
     
@@ -65,7 +65,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     
     try {
       await retryRequest(async () => {
-        const response = await fetch(`/api/v1/emails?fingerprint=${fingerprint}`, {
+        const response = await fetch(`/api/v1/emails?fingerprint=${fingerprint}&t=${Date.now()}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -141,37 +141,52 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
         if (response.status === 409 && custom) {
           // Email already exists, try to claim/recover it
           const address = custom.includes('@') ? custom : `${custom}@whitebooking.com`
-          const claim = await fetch('/api/v1/emails', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fingerprint, emailAddress: custom })
-          })
-          if (claim.ok) {
-            // Successfully claimed/recovered - refresh list and select the email
-            await fetchEmails()
-            // Wait a bit for the state to update
-            setTimeout(() => {
-              onSelectEmail(address)
-            }, 100)
+          
+          try {
+            const claim = await fetch('/api/v1/emails', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fingerprint, emailAddress: custom }),
+              signal: AbortSignal.timeout(10000)
+            })
             
-            // Show success notification
-            const notification = document.createElement('div')
-            notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
-            notification.textContent = `Email recovered: ${address}`
-            document.body.appendChild(notification)
-            
-            activeNotifications.add(notification)
-            
-            setTimeout(() => {
-              if (document.body.contains(notification)) {
-                document.body.removeChild(notification)
-                activeNotifications.delete(notification)
-              }
-            }, 3000)
-            
-            return
-          } else {
-            throw new Error('Failed to claim email - it may belong to another session')
+            if (claim.ok) {
+              const notification = document.createElement('div')
+              notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
+              notification.textContent = `Email recovered: ${address}`
+              document.body.appendChild(notification)
+              
+              activeNotifications.add(notification)
+              
+              setTimeout(() => {
+                if (document.body.contains(notification)) {
+                  document.body.removeChild(notification)
+                  activeNotifications.delete(notification)
+                }
+              }, 3000)
+              
+              // Reset generating state BEFORE fetching
+              setGenerating(false)
+              setCustomEmail('')
+              generatingRef.current = false
+              
+              // Force refresh list (bypass cache) and select the email
+              await fetchEmails(true)
+              
+              // Wait for state to update before selecting
+              setTimeout(() => {
+                onSelectEmail(address)
+              }, 200)
+              
+              return
+            } else {
+              throw new Error('Failed to claim email - it may belong to another session')
+            }
+          } catch (claimErr) {
+            // Reset generating state on error
+            setGenerating(false)
+            generatingRef.current = false
+            throw claimErr
           }
         }
         throw new Error(`HTTP ${response.status}: Failed to generate email`)
