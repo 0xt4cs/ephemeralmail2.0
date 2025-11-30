@@ -50,16 +50,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     return okJson({
-      success: true,
-      data: {
-        message: 'Public email recovered successfully',
-        emailAddress,
-        recoveredAt: new Date().toISOString()
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        credits: 'EphemeralMail by @0xt4cs - https://github.com/0xt4cs'
-      }
+      message: 'Email recovered successfully',
+      address: emailAddress,
+      recoveredAt: new Date().toISOString()
     })
   } catch (error) {
     console.error('Error recovering public email:', error)

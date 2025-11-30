@@ -139,6 +139,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
           throw new Error('Rate limit exceeded - please wait a moment')
         }
         if (response.status === 409 && custom) {
+          // Email already exists, try to claim/recover it
           const address = custom.includes('@') ? custom : `${custom}@whitebooking.com`
           const claim = await fetch('/api/v1/emails', {
             method: 'PATCH',
@@ -146,9 +147,31 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
             body: JSON.stringify({ fingerprint, emailAddress: custom })
           })
           if (claim.ok) {
+            // Successfully claimed/recovered - refresh list and select the email
             await fetchEmails()
-            onSelectEmail(address)
+            // Wait a bit for the state to update
+            setTimeout(() => {
+              onSelectEmail(address)
+            }, 100)
+            
+            // Show success notification
+            const notification = document.createElement('div')
+            notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
+            notification.textContent = `Email recovered: ${address}`
+            document.body.appendChild(notification)
+            
+            activeNotifications.add(notification)
+            
+            setTimeout(() => {
+              if (document.body.contains(notification)) {
+                document.body.removeChild(notification)
+                activeNotifications.delete(notification)
+              }
+            }, 3000)
+            
             return
+          } else {
+            throw new Error('Failed to claim email - it may belong to another session')
           }
         }
         throw new Error(`HTTP ${response.status}: Failed to generate email`)
