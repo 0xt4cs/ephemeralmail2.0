@@ -139,26 +139,28 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
           throw new Error('Rate limit exceeded - please wait a moment')
         }
         if (response.status === 409 && custom) {
-          // Email already exists - just look it up and use it directly
+          // Email already exists - claim it to this session
           const address = custom.includes('@') ? custom : `${custom}@whitebooking.com`
           
           // Clear progress indicator since we're not generating
           clearProgress()
           
           try {
-            // Look up the existing email
-            const lookup = await fetch(`/api/v1/emails?email=${encodeURIComponent(address)}`, {
-              method: 'GET',
+            // Claim/recover the email to this session
+            const claim = await fetch('/api/v1/emails', {
+              method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fingerprint, emailAddress: address }),
               signal: AbortSignal.timeout(10000)
             })
             
-            if (lookup.ok) {
-              // Email exists - just use it directly
+            if (claim.ok) {
+              const claimData = await claim.json()
+              
               // Show success notification
               const notification = document.createElement('div')
               notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
-              notification.textContent = `Email found: ${address}`
+              notification.textContent = claimData.data?.message || `Email claimed: ${address}`
               document.body.appendChild(notification)
               
               activeNotifications.add(notification)
@@ -184,53 +186,15 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
               }, 200)
               
               return
-            } else if (lookup.status === 404) {
-              // Email was deleted, try to recover it
-              const recover = await fetch('/api/v1/emails', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ emailAddress: address }),
-                signal: AbortSignal.timeout(10000)
-              })
-              
-              if (recover.ok) {
-                const notification = document.createElement('div')
-                notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
-                notification.textContent = `Email recovered: ${address}`
-                document.body.appendChild(notification)
-                
-                activeNotifications.add(notification)
-                
-                setTimeout(() => {
-                  if (document.body.contains(notification)) {
-                    document.body.removeChild(notification)
-                    activeNotifications.delete(notification)
-                  }
-                }, 3000)
-                
-                setGenerating(false)
-                setCustomEmail('')
-                generatingRef.current = false
-                
-                await fetchEmails(true)
-                
-                setTimeout(() => {
-                  onSelectEmail(address)
-                }, 200)
-                
-                return
-              } else {
-                throw new Error('Failed to recover deleted email')
-              }
             } else {
-              throw new Error('Failed to look up email')
+              throw new Error('Failed to claim email')
             }
-          } catch (lookupErr) {
+          } catch (claimErr) {
             // Reset generating state on error
             setGenerating(false)
             generatingRef.current = false
             clearProgress()
-            throw lookupErr
+            throw claimErr
           }
         }
         throw new Error(`HTTP ${response.status}: Failed to generate email`)

@@ -191,7 +191,7 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// Recovery endpoint
+// Recovery/Claim endpoint - recover deleted emails OR claim existing emails to your session
 const RecoverSchema = z.object({
   fingerprint: z.string().min(8).optional(),
   emailAddress: z.string().min(3),
@@ -202,7 +202,7 @@ export async function PATCH(request: NextRequest) {
     const json = await request.json()
     const parsed = RecoverSchema.safeParse(json)
     if (!parsed.success) return errorJson(400, 'Invalid request body', parsed.error.flatten())
-    const { emailAddress } = parsed.data
+    const { fingerprint, emailAddress } = parsed.data
     const normalizedAddress = emailAddress.includes('@') ? emailAddress : `${emailAddress}@whitebooking.com`
 
     // Find the email (no session restriction)
@@ -215,22 +215,48 @@ export async function PATCH(request: NextRequest) {
       return errorJson(404, 'Email address not found')
     }
 
-    // If already active, return success
+    // Get or create session if fingerprint provided (to claim email to user's session)
+    let newSessionId: string | undefined = undefined
+    if (fingerprint) {
+      let session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
+      if (!session) {
+        session = await prisma.session.create({ 
+          data: { fingerprint, emailCount: 0 }, 
+          select: { id: true } 
+        })
+      }
+      newSessionId = session.id
+    }
+
+    // If email is already active and belongs to a different session, claim it
     if (!email.deletedAt) {
+      if (newSessionId && email.sessionId !== newSessionId) {
+        // Claim email to new session
+        await prisma.email.update({
+          where: { emailAddress: normalizedAddress },
+          data: { sessionId: newSessionId }
+        })
+        return okJson({
+          message: 'Email claimed to your session',
+          emailAddress: normalizedAddress,
+          claimedAt: new Date().toISOString()
+        })
+      }
       return okJson({
         message: 'Email is already active',
         emailAddress: normalizedAddress
       })
     }
 
-    // Recover the email (no session restriction)
+    // Recover the deleted email and optionally claim to new session
     await prisma.email.update({
       where: { emailAddress: normalizedAddress },
       data: {
         deletedAt: null,
         deletedBy: null,
         isActive: true,
-        isRecovered: true
+        isRecovered: true,
+        ...(newSessionId ? { sessionId: newSessionId } : {})
       }
     })
 
