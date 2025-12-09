@@ -30,23 +30,7 @@ export async function GET(request: NextRequest) {
     if (!parsed.success) return errorJson(400, 'Invalid query', parsed.error.flatten())
     const { fingerprint, email, id, limit = 20, cursor, includeDeleted = false } = parsed.data
 
-    // If fingerprint provided, ensure session exists (for backwards compat)
-    if (fingerprint) {
-      let session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
-      if (!session) {
-        try {
-          session = await prisma.session.create({ 
-            data: { fingerprint, emailCount: 0 }, 
-            select: { id: true } 
-          })
-        } catch (error) {
-          console.error('Failed to create session:', error)
-          return errorJson(500, 'Failed to create session')
-        }
-      }
-    }
-
-    // Lookup by email address (no session restriction)
+    // Lookup by email address (no session restriction - anyone can look up any email)
     if (email) {
       const normalizedAddress = email.includes('@') ? email : `${email}@whitebooking.com`
       const found = await prisma.email.findUnique({
@@ -72,7 +56,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Lookup by ID (no session restriction)
+    // Lookup by ID (no session restriction - anyone can look up any email by ID)
     if (id) {
       const found = await prisma.email.findFirst({
         where: { 
@@ -99,9 +83,32 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // List all emails (no session restriction)
+    // List emails - requires fingerprint for session-based listing
+    // This prevents returning ALL emails to any user
+    if (!fingerprint) {
+      return errorJson(400, 'Fingerprint required for listing emails. Use email or id parameter for direct lookup.')
+    }
+
+    // Get or create session
+    let session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
+    if (!session) {
+      try {
+        session = await prisma.session.create({ 
+          data: { fingerprint, emailCount: 0 }, 
+          select: { id: true } 
+        })
+      } catch (error) {
+        console.error('Failed to create session:', error)
+        return errorJson(500, 'Failed to create session')
+      }
+    }
+
+    // List emails for this session only
     const emails = await prisma.email.findMany({
-      where: includeDeleted ? {} : { deletedAt: null },
+      where: { 
+        sessionId: session.id,
+        ...(includeDeleted ? {} : { deletedAt: null })
+      },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       skip: cursor ? 1 : 0,
@@ -130,6 +137,7 @@ export async function GET(request: NextRequest) {
       nextCursor,
       meta: {
         total: page.length,
+        fingerprint: fingerprint,
         includeDeleted: includeDeleted,
         timestamp: new Date().toISOString()
       }
