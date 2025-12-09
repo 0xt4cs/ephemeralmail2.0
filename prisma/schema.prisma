@@ -24,10 +24,9 @@ model Session {
 model Email {
   id            String         @id @default(cuid())
   emailAddress  String         @unique
-  sessionId     String?        // Optional for public generated emails
+  sessionId     String?
   session       Session?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   createdAt     DateTime       @default(now())
-  expiresAt     DateTime
   isActive      Boolean        @default(true)
   deletedAt     DateTime?      // Soft delete timestamp
   deletedBy     String?        // Session fingerprint that deleted it
@@ -36,7 +35,6 @@ model Email {
 
   @@index([sessionId])
   @@index([sessionId, createdAt])
-  @@index([expiresAt])
   @@index([isActive])
   @@index([deletedAt])
   @@index([emailAddress, deletedAt]) // For recovery lookup

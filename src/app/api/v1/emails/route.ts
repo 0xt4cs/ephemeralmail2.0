@@ -8,7 +8,8 @@ export async function OPTIONS() {
 }
 
 const QuerySchema = z.object({
-  fingerprint: z.string().min(8),
+  fingerprint: z.string().min(8).optional(), // Optional - for backwards compat
+  email: z.string().min(3).optional(), // Query by email address
   id: z.string().cuid().optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
   cursor: z.string().optional(),
@@ -19,62 +20,88 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
     const parsed = QuerySchema.safeParse({
-      fingerprint: url.searchParams.get('fingerprint'),
+      fingerprint: url.searchParams.get('fingerprint') ?? undefined,
+      email: url.searchParams.get('email') ?? undefined,
       id: url.searchParams.get('id') ?? undefined,
       limit: url.searchParams.get('limit') ?? undefined,
       cursor: url.searchParams.get('cursor') ?? undefined,
       includeDeleted: url.searchParams.get('includeDeleted') ?? undefined,
     })
     if (!parsed.success) return errorJson(400, 'Invalid query', parsed.error.flatten())
-    const { fingerprint, id, limit = 20, cursor, includeDeleted = false } = parsed.data
+    const { fingerprint, email, id, limit = 20, cursor, includeDeleted = false } = parsed.data
 
-    let session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
-    if (!session) {
-      try {
-        session = await prisma.session.create({ 
-          data: { fingerprint, emailCount: 0 }, 
-          select: { id: true } 
-        })
-      } catch (error) {
-        console.error('Failed to create session:', error)
-        return errorJson(500, 'Failed to create session')
+    // If fingerprint provided, ensure session exists (for backwards compat)
+    if (fingerprint) {
+      let session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
+      if (!session) {
+        try {
+          session = await prisma.session.create({ 
+            data: { fingerprint, emailCount: 0 }, 
+            select: { id: true } 
+          })
+        } catch (error) {
+          console.error('Failed to create session:', error)
+          return errorJson(500, 'Failed to create session')
+        }
       }
     }
 
+    // Lookup by email address (no session restriction)
+    if (email) {
+      const normalizedAddress = email.includes('@') ? email : `${email}@whitebooking.com`
+      const found = await prisma.email.findUnique({
+        where: { emailAddress: normalizedAddress },
+        select: { 
+          id: true, 
+          emailAddress: true, 
+          createdAt: true, 
+          isActive: true,
+          deletedAt: true,
+          isRecovered: true
+        },
+      })
+      if (!found) return errorJson(404, 'Email not found')
+      if (!includeDeleted && found.deletedAt) return errorJson(404, 'Email not found')
+      return okJson({
+        id: found.id,
+        address: found.emailAddress,
+        createdAt: found.createdAt,
+        isActive: found.isActive,
+        deletedAt: found.deletedAt,
+        isRecovered: found.isRecovered
+      })
+    }
+
+    // Lookup by ID (no session restriction)
     if (id) {
-      const email = await prisma.email.findFirst({
+      const found = await prisma.email.findFirst({
         where: { 
-          id, 
-          sessionId: session.id,
+          id,
           ...(includeDeleted ? {} : { deletedAt: null })
         },
         select: { 
           id: true, 
           emailAddress: true, 
           createdAt: true, 
-          expiresAt: true, 
           isActive: true,
           deletedAt: true,
           isRecovered: true
         },
       })
-      if (!email) return errorJson(404, 'Email not found')
+      if (!found) return errorJson(404, 'Email not found')
       return okJson({
-        id: email.id,
-        address: email.emailAddress,
-        createdAt: email.createdAt,
-        expiresAt: email.expiresAt,
-        isActive: email.isActive,
-        deletedAt: email.deletedAt,
-        isRecovered: email.isRecovered
+        id: found.id,
+        address: found.emailAddress,
+        createdAt: found.createdAt,
+        isActive: found.isActive,
+        deletedAt: found.deletedAt,
+        isRecovered: found.isRecovered
       })
     }
 
+    // List all emails (no session restriction)
     const emails = await prisma.email.findMany({
-      where: { 
-        sessionId: session.id,
-        ...(includeDeleted ? {} : { deletedAt: null })
-      },
+      where: includeDeleted ? {} : { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
       skip: cursor ? 1 : 0,
@@ -83,21 +110,19 @@ export async function GET(request: NextRequest) {
         id: true, 
         emailAddress: true, 
         createdAt: true, 
-        expiresAt: true, 
         isActive: true,
         deletedAt: true,
         isRecovered: true
       },
     })
     const nextCursor = emails.length > limit ? emails[limit].id : undefined
-    const page = emails.slice(0, limit).map((email: typeof emails[0]) => ({
-      id: email.id,
-      address: email.emailAddress,
-      createdAt: email.createdAt,
-      expiresAt: email.expiresAt,
-      isActive: email.isActive,
-      deletedAt: email.deletedAt,
-      isRecovered: email.isRecovered
+    const page = emails.slice(0, limit).map((emailItem: typeof emails[0]) => ({
+      id: emailItem.id,
+      address: emailItem.emailAddress,
+      createdAt: emailItem.createdAt,
+      isActive: emailItem.isActive,
+      deletedAt: emailItem.deletedAt,
+      isRecovered: emailItem.isRecovered
     }))
 
     return okJson({ 
@@ -105,7 +130,6 @@ export async function GET(request: NextRequest) {
       nextCursor,
       meta: {
         total: page.length,
-        fingerprint: fingerprint,
         includeDeleted: includeDeleted,
         timestamp: new Date().toISOString()
       }
@@ -119,7 +143,7 @@ export async function GET(request: NextRequest) {
 }
 
 const DeleteSchema = z.object({
-  fingerprint: z.string().min(8),
+  fingerprint: z.string().min(8).optional(),
   id: z.string().cuid(),
 })
 
@@ -127,17 +151,14 @@ export async function DELETE(request: NextRequest) {
   try {
     const url = new URL(request.url)
     const parsed = DeleteSchema.safeParse({
-      fingerprint: url.searchParams.get('fingerprint'),
+      fingerprint: url.searchParams.get('fingerprint') ?? undefined,
       id: url.searchParams.get('id'),
     })
     if (!parsed.success) return errorJson(400, 'Invalid query', parsed.error.flatten())
     const { fingerprint, id } = parsed.data
 
-    const session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
-    if (!session) return errorJson(404, 'Session not found')
-
     const email = await prisma.email.findFirst({ 
-      where: { id, sessionId: session.id, deletedAt: null }, 
+      where: { id, deletedAt: null }, 
       select: { id: true } 
     })
     if (!email) return errorJson(404, 'Email not found or already deleted')
@@ -147,25 +168,24 @@ export async function DELETE(request: NextRequest) {
       where: { id }, 
       data: { 
         deletedAt: new Date(),
-        deletedBy: fingerprint,
+        deletedBy: fingerprint || 'anonymous',
         isActive: false
       }
     })
     
-    // Don't decrement emailCount for soft delete
     return okJson({ 
-      message: 'Email soft deleted successfully. It will be permanently deleted after 14 days.',
+      message: 'Email deleted successfully.',
       deletedAt: new Date().toISOString()
     })
   } catch (e) {
-    console.error('Error soft deleting email v1:', e)
+    console.error('Error deleting email v1:', e)
     return errorJson(500, 'Internal server error')
   }
 }
 
 // Recovery endpoint
 const RecoverSchema = z.object({
-  fingerprint: z.string().min(8),
+  fingerprint: z.string().min(8).optional(),
   emailAddress: z.string().min(3),
 })
 
@@ -174,59 +194,35 @@ export async function PATCH(request: NextRequest) {
     const json = await request.json()
     const parsed = RecoverSchema.safeParse(json)
     if (!parsed.success) return errorJson(400, 'Invalid request body', parsed.error.flatten())
-    const { fingerprint, emailAddress } = parsed.data
+    const { emailAddress } = parsed.data
     const normalizedAddress = emailAddress.includes('@') ? emailAddress : `${emailAddress}@whitebooking.com`
 
-    const session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
-    if (!session) return errorJson(404, 'Session not found')
-
-    let email = await prisma.email.findFirst({
-      where: { 
-        emailAddress: normalizedAddress,
-        deletedAt: { not: null },
-        expiresAt: { gt: new Date() }
-      },
+    // Find the email (no session restriction)
+    const email = await prisma.email.findUnique({
+      where: { emailAddress: normalizedAddress },
       select: { id: true, sessionId: true, deletedAt: true }
     })
 
-    const claimingActive = !email
     if (!email) {
-      const active = await prisma.email.findUnique({
-        where: { emailAddress: normalizedAddress },
-        select: { id: true, sessionId: true, deletedAt: true, expiresAt: true }
-      })
-      if (!active) {
-        return errorJson(404, 'Email address not found')
-      }
-      if (active.expiresAt <= new Date()) {
-        return errorJson(410, 'Email address expired')
-      }
-      email = active
+      return errorJson(404, 'Email address not found')
     }
 
-    // Check if email belongs to this session or was deleted by this session
-    if (email.sessionId !== session.id && email.deletedAt) {
-      // Allow recovery if deleted by same fingerprint
-      const deletedEmail = await prisma.email.findFirst({
-        where: { 
-          emailAddress,
-          deletedBy: fingerprint,
-          deletedAt: { not: null }
-        }
+    // If already active, return success
+    if (!email.deletedAt) {
+      return okJson({
+        message: 'Email is already active',
+        emailAddress: normalizedAddress
       })
-      if (!deletedEmail) {
-        return errorJson(403, 'Email not owned by this session')
-      }
     }
 
+    // Recover the email (no session restriction)
     await prisma.email.update({
       where: { emailAddress: normalizedAddress },
       data: {
         deletedAt: null,
         deletedBy: null,
         isActive: true,
-        isRecovered: !claimingActive,
-        sessionId: session.id
+        isRecovered: true
       }
     })
 

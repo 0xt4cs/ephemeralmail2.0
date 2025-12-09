@@ -99,7 +99,6 @@ curl -X POST https://DOMAIN/v1/public/generate \
     "id": "clx1234567890",
     "address": "testuser123@DOMAIN",
     "createdAt": "2025-11-30T10:30:00.000Z",
-    "expiresAt": "2025-12-14T10:30:00.000Z",
     "isActive": true
   }
 }
@@ -108,7 +107,7 @@ curl -X POST https://DOMAIN/v1/public/generate \
 **Notes:**
 - If `customEmail` is not provided, a random email will be generated
 - Custom emails must contain only letters, numbers, dots, and hyphens
-- Emails expire after 14 days
+- Emails do not expire automatically - they persist until manually deleted
 
 ### 2. List All Emails
 
@@ -166,8 +165,7 @@ curl "https://DOMAIN/api/v1/public/emails?email=testuser123@DOMAIN"
     "emailAddress": "testuser123@DOMAIN",
     "isActive": true,
     "isDeleted": false,
-    "createdAt": "2025-11-30T10:30:00.000Z",
-    "expiresAt": "2025-12-14T10:30:00.000Z"
+    "createdAt": "2025-11-30T10:30:00.000Z"
   }
 }
 ```
@@ -314,8 +312,9 @@ curl -X PATCH https://DOMAIN/api/v1/public/emails/recover \
 ## Deletion Mechanism
 
 - **Soft Delete**: Emails are marked as inactive but not permanently removed
-- **Recovery**: Soft-deleted emails can be recovered within 14 days
-- **Hard Delete**: Emails are permanently deleted after 14 days
+- **Recovery**: Soft-deleted emails can be recovered at any time
+- **No Auto-Deletion**: Emails persist indefinitely until manually deleted
+- **Open Access**: Any email can be retrieved regardless of who created it or session
 
 ## License
 

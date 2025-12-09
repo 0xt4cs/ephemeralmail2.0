@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         updatedAt: true,
         emails: {
           orderBy: { createdAt: 'desc' },
-          select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true,
+          select: { id: true, emailAddress: true, createdAt: true, isActive: true, deletedAt: true,
             receivedEmails: { select: { id: true }, orderBy: { receivedAt: 'desc' } } },
         },
       },
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
     if (!session) return errorJson(404, 'Session not found')
 
     const totalReceivedEmails = session.emails.reduce((t, e) => t + e.receivedEmails.length, 0)
-    const activeEmails = session.emails.filter(e => e.isActive && e.expiresAt > new Date())
-    const expiredEmails = session.emails.filter(e => !e.isActive || e.expiresAt <= new Date())
+    const activeEmails = session.emails.filter(e => e.isActive && !e.deletedAt)
+    const deletedEmails = session.emails.filter(e => !e.isActive || e.deletedAt)
 
     return okJson({
       session: {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       statistics: {
         totalEmails: session.emails.length,
         activeEmails: activeEmails.length,
-        expiredEmails: expiredEmails.length,
+        deletedEmails: deletedEmails.length,
         totalReceivedEmails,
         remainingSlots: Math.max(0, 10 - session.emailCount),
       },
@@ -56,8 +56,8 @@ export async function GET(request: NextRequest) {
         id: e.id,
         emailAddress: e.emailAddress,
         createdAt: e.createdAt,
-        expiresAt: e.expiresAt,
         isActive: e.isActive,
+        deletedAt: e.deletedAt,
         receivedEmailsCount: e.receivedEmails.length,
       })),
     })

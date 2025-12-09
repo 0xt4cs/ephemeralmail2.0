@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
         id: true, 
         emailAddress: true, 
         createdAt: true, 
-        expiresAt: true, 
         isActive: true,
       },
     })
@@ -47,7 +46,6 @@ export async function GET(request: NextRequest) {
       id: email.id,
       address: email.emailAddress,
       createdAt: email.createdAt.toISOString(),
-      expiresAt: email.expiresAt.toISOString(),
       isActive: email.isActive,
     }))
 

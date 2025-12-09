@@ -9,7 +9,7 @@ export async function OPTIONS() {
 }
 
 const GetQuerySchema = z.object({
-  fingerprint: z.string().min(8),
+  fingerprint: z.string().min(8).optional(), // Optional for backwards compat
   email: z.string().min(3).optional(),
   id: z.string().cuid().optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
@@ -20,31 +20,34 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
     const parsed = GetQuerySchema.safeParse({
-      fingerprint: url.searchParams.get('fingerprint') ?? '',
+      fingerprint: url.searchParams.get('fingerprint') ?? undefined,
       email: url.searchParams.get('email') ?? undefined,
       id: url.searchParams.get('id') ?? undefined,
       limit: url.searchParams.get('limit') ?? undefined,
       cursor: url.searchParams.get('cursor') ?? undefined,
     })
     if (!parsed.success) return errorJson(400, 'Invalid query', parsed.error.flatten())
-    const { fingerprint, email, id, limit = 20, cursor } = parsed.data
+    const { email, id, limit = 20, cursor } = parsed.data
 
-    const session = await prisma.session.findUnique({ where: { fingerprint }, select: { id: true } })
-    if (!session) return errorJson(404, 'Session not found')
+    // Require either email or id to look up received messages
+    if (!email && !id) {
+      return errorJson(400, 'Either email or id parameter is required')
+    }
 
     const normalizedAddress = email
       ? (email.includes('@') ? email : `${email}@whitebooking.com`)
       : undefined
 
+    // Find target email (no session restriction)
     const targetEmail = normalizedAddress
       ? await prisma.email.findUnique({ where: { emailAddress: normalizedAddress }, select: { id: true } })
       : await prisma.email.findFirst({
-          where: { sessionId: session.id, ...(id ? { id } : {}) },
+          where: { id },
           select: { id: true },
         })
 
     if (!targetEmail) {
-      return errorJson(404, normalizedAddress ? 'Email address not found' : 'Email not found in this session')
+      return errorJson(404, 'Email address not found')
     }
 
     const messages = await prisma.receivedEmail.findMany({
@@ -72,7 +75,7 @@ export async function GET(request: NextRequest) {
       nextCursor,
       meta: {
         total: page.length,
-        email: normalizedAddress || 'all',
+        email: normalizedAddress || 'by-id',
         timestamp: new Date().toISOString()
       }
     }, {

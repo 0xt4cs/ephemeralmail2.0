@@ -44,7 +44,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [emailToDelete, setEmailToDelete] = useState<{ id: string; address: string } | null>(null)
-  const { currentProgress, sendHeartbeat, registerRefreshCallback } = useRealtimeContext()
+  const { currentProgress, sendHeartbeat, clearProgress, registerRefreshCallback } = useRealtimeContext()
   
   // Prevent race conditions with ref to track ongoing operations
   const fetchingRef = useRef(false)
@@ -139,21 +139,26 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
           throw new Error('Rate limit exceeded - please wait a moment')
         }
         if (response.status === 409 && custom) {
-          // Email already exists, try to claim/recover it
+          // Email already exists - just look it up and use it directly
           const address = custom.includes('@') ? custom : `${custom}@whitebooking.com`
           
+          // Clear progress indicator since we're not generating
+          clearProgress()
+          
           try {
-            const claim = await fetch('/api/v1/emails', {
-              method: 'PATCH',
+            // Look up the existing email
+            const lookup = await fetch(`/api/v1/emails?email=${encodeURIComponent(address)}`, {
+              method: 'GET',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fingerprint, emailAddress: custom }),
               signal: AbortSignal.timeout(10000)
             })
             
-            if (claim.ok) {
+            if (lookup.ok) {
+              // Email exists - just use it directly
+              // Show success notification
               const notification = document.createElement('div')
               notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
-              notification.textContent = `Email recovered: ${address}`
+              notification.textContent = `Email found: ${address}`
               document.body.appendChild(notification)
               
               activeNotifications.add(notification)
@@ -170,23 +175,62 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
               setCustomEmail('')
               generatingRef.current = false
               
-              // Force refresh list (bypass cache) and select the email
+              // Force refresh list and select the email
               await fetchEmails(true)
               
-              // Wait for state to update before selecting
+              // Select the email after a small delay
               setTimeout(() => {
                 onSelectEmail(address)
               }, 200)
               
               return
+            } else if (lookup.status === 404) {
+              // Email was deleted, try to recover it
+              const recover = await fetch('/api/v1/emails', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ emailAddress: address }),
+                signal: AbortSignal.timeout(10000)
+              })
+              
+              if (recover.ok) {
+                const notification = document.createElement('div')
+                notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
+                notification.textContent = `Email recovered: ${address}`
+                document.body.appendChild(notification)
+                
+                activeNotifications.add(notification)
+                
+                setTimeout(() => {
+                  if (document.body.contains(notification)) {
+                    document.body.removeChild(notification)
+                    activeNotifications.delete(notification)
+                  }
+                }, 3000)
+                
+                setGenerating(false)
+                setCustomEmail('')
+                generatingRef.current = false
+                
+                await fetchEmails(true)
+                
+                setTimeout(() => {
+                  onSelectEmail(address)
+                }, 200)
+                
+                return
+              } else {
+                throw new Error('Failed to recover deleted email')
+              }
             } else {
-              throw new Error('Failed to claim email - it may belong to another session')
+              throw new Error('Failed to look up email')
             }
-          } catch (claimErr) {
+          } catch (lookupErr) {
             // Reset generating state on error
             setGenerating(false)
             generatingRef.current = false
-            throw claimErr
+            clearProgress()
+            throw lookupErr
           }
         }
         throw new Error(`HTTP ${response.status}: Failed to generate email`)
@@ -223,12 +267,14 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
       } else {
         setError(err instanceof Error ? err.message : 'Failed to generate email')
       }
+      // Clear progress on error
+      clearProgress()
     } finally {
       setGenerating(false)
       setCustomEmail('')
       generatingRef.current = false
     }
-  }, [fingerprint, fetchEmails, onSelectEmail, sendHeartbeat])
+  }, [fingerprint, fetchEmails, onSelectEmail, sendHeartbeat, clearProgress])
 
   const deleteEmail = useCallback(async (id: string) => {
     if (!fingerprint) return
@@ -309,14 +355,14 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
 
   // Fetch unread counts for all emails
   const fetchUnreadCounts = useCallback(async () => {
-    if (!fingerprint || emails.length === 0) return
+    if (emails.length === 0) return
     
     const counts: Record<string, number> = {}
     
     for (const email of emails) {
       try {
         const response = await fetch(
-          `/api/v1/received?fingerprint=${fingerprint}&email=${encodeURIComponent(email.address)}`,
+          `/api/v1/received?email=${encodeURIComponent(email.address)}`,
           { signal: AbortSignal.timeout(5000) }
         )
         if (response.ok) {
@@ -331,7 +377,7 @@ export function EmailList({ fingerprint, selectedEmailAddress, onSelectEmail }: 
     }
     
     setUnreadCounts(counts)
-  }, [fingerprint, emails])
+  }, [emails])
 
   useEffect(() => {
     if (fingerprint) {

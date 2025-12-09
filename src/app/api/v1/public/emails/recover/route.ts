@@ -24,19 +24,13 @@ export async function PATCH(request: NextRequest) {
     const email = await prisma.email.findFirst({
       where: { 
         emailAddress,
-          sessionId: { startsWith: 'public-' },
-        deletedAt: { not: null },
-        expiresAt: { gt: new Date() }
+        deletedAt: { not: null }
       },
       select: { id: true, deletedAt: true, deletedBy: true }
     })
 
     if (!email) {
-      return errorJson(404, 'Soft-deleted public email not found or expired')
-    }
-
-    if (email.deletedBy && email.deletedBy !== 'public-api') {
-      return errorJson(403, 'Email was deleted by a different client')
+      return errorJson(404, 'Soft-deleted email not found')
     }
 
     await prisma.email.update({

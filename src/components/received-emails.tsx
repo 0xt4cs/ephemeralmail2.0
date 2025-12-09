@@ -47,7 +47,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
   const fetchingRef = useRef(false)
 
   const fetchEmails = useCallback(async () => {
-    if (!fingerprint || !selectedEmailAddress) return
+    if (!selectedEmailAddress) return
     
     // Prevent concurrent fetches (race condition fix)
     if (fetchingRef.current) {
@@ -59,7 +59,8 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
     setError(null)
     
     try {
-      const response = await fetch(`/api/v1/received?fingerprint=${fingerprint}&email=${encodeURIComponent(selectedEmailAddress)}`, {
+      // No session restriction - fetch by email address directly
+      const response = await fetch(`/api/v1/received?email=${encodeURIComponent(selectedEmailAddress)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +92,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       setLoading(false)
       fetchingRef.current = false
     }
-  }, [fingerprint, selectedEmailAddress])
+  }, [selectedEmailAddress])
 
   const { lastMessage, registerRefreshCallback } = useRealtimeContext()
 

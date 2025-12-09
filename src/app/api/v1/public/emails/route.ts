@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const found = await prisma.email.findUnique({
       where: { emailAddress: normalizedAddress },
-      select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true }
+      select: { id: true, emailAddress: true, createdAt: true, isActive: true }
     })
 
     if (!found) return errorJson(404, 'Email address not found')
@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
       id: found.id,
       address: found.emailAddress,
       createdAt: found.createdAt,
-      expiresAt: found.expiresAt,
       isActive: found.isActive
     })
   } catch (e) {

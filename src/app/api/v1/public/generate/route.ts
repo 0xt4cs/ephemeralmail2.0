@@ -44,17 +44,15 @@ export async function POST(request: NextRequest) {
       data: {
         emailAddress,
         sessionId: publicSession.id,
-        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         isActive: true,
       },
-      select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
+      select: { id: true, emailAddress: true, createdAt: true, isActive: true },
     })
 
     return okJson({
       id: email.id,
       address: email.emailAddress,
       createdAt: email.createdAt.toISOString(),
-      expiresAt: email.expiresAt.toISOString(),
       isActive: email.isActive
     })
   } catch (error) {

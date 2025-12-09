@@ -35,12 +35,10 @@ export async function POST(request: NextRequest) {
       session = await prisma.session.create({ data: { fingerprint, emailCount: 0 }, include: { emails: true } })
     }
 
-    // Count only active (non-deleted) emails
     const activeEmailCount = await prisma.email.count({
       where: {
         sessionId: session.id,
-        deletedAt: null,
-        expiresAt: { gt: new Date() }
+        deletedAt: null
       }
     })
 
@@ -86,7 +84,6 @@ export async function POST(request: NextRequest) {
           id: existingEmail.id, 
           address: existingEmail.emailAddress, 
           createdAt: existingEmail.createdAt, 
-          expiresAt: existingEmail.expiresAt, 
           isActive: existingEmail.isActive 
         })
       }
@@ -105,10 +102,9 @@ export async function POST(request: NextRequest) {
       data: {
         emailAddress,
         sessionId: session.id,
-        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         isActive: true,
       },
-      select: { id: true, emailAddress: true, createdAt: true, expiresAt: true, isActive: true },
+      select: { id: true, emailAddress: true, createdAt: true, isActive: true },
     })
 
     // Send progress update - Updating session
@@ -128,7 +124,6 @@ export async function POST(request: NextRequest) {
       id: email.id,
       address: email.emailAddress,
       createdAt: email.createdAt,
-      expiresAt: email.expiresAt,
       isActive: email.isActive
     })
   } catch (error) {

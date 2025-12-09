@@ -9,6 +9,7 @@ interface RealtimeContextType {
   lastMessage: SSEMessage | null
   currentProgress: ProgressData | null
   sendHeartbeat: (operation: string, progress?: number) => void
+  clearProgress: () => void
   refreshAll: () => void
   registerRefreshCallback: (callback: () => void) => () => void
 }
@@ -29,6 +30,10 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
   const refreshAll = useCallback(() => {
     refreshCallbacksRef.current.forEach(callback => callback())
   }, []) // No dependencies - always uses current ref value
+
+  const clearProgress = useCallback(() => {
+    setCurrentProgress(null)
+  }, [])
 
   const { isConnected, connectionType, lastMessage, sendHeartbeat } = useRealtime({
     fingerprint,
@@ -83,6 +88,7 @@ export function RealtimeProvider({ children, fingerprint }: RealtimeProviderProp
     lastMessage,
     currentProgress,
     sendHeartbeat,
+    clearProgress,
     refreshAll,
     registerRefreshCallback
   }
