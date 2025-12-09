@@ -37,6 +37,7 @@ interface ReceivedEmailsProps {
   onSelectMessage: (message: ReceivedEmail) => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMessage, onSelectMessage }: ReceivedEmailsProps) {
   const [emails, setEmails] = useState<ReceivedEmail[]>([])
   const [loading, setLoading] = useState(false)
@@ -112,6 +113,9 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
   // Handle real-time updates
   useEffect(() => {
     if (lastMessage?.type === 'email_received' && selectedEmailAddress) {
+      // Refresh received emails when new email is received
+      fetchEmails()
+      
       // Show subtle notification
       const emailData = lastMessage.data as { fromAddress?: string }
       const notification = document.createElement('div')
@@ -138,9 +142,6 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
           activeNotifications.delete(notification)
         }
       }
-      
-      // Refresh received emails when new email is received (no race condition - has fetchingRef guard)
-      fetchEmails()
     }
   }, [lastMessage, selectedEmailAddress, fetchEmails])
   
