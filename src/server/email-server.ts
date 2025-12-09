@@ -112,24 +112,33 @@ export class EmailServer extends EventEmitter {
         callback() // Accept all recipients
       },
       
-      // Handle email data (like mailserver.js)
+      // Handle email data (non-blocking - responds immediately)
       onData: (stream: NodeJS.ReadableStream, session: any, callback: (err?: Error | null) => void) => {
         const chunks: Buffer[] = []
         stream.on('data', (d: Buffer) => chunks.push(d))
         stream.on('end', async () => {
           try {
             const buf = Buffer.concat(chunks)
-            const mail = await simpleParser(buf)
             
+            // Accept email immediately (non-blocking)
+            callback()
+            console.log(`[SMTP] Email accepted (processing in background)`)
+            
+            // Process in background without blocking SMTP response
+            const mail = await simpleParser(buf)
             const emailEvent = await this.processReceivedEmail(mail, session)
             this.emit('emailReceived', emailEvent)
             
             console.log(`[SMTP] Email processed: ${emailEvent.from} -> ${emailEvent.to}`)
-            callback()
           } catch (e) {
-            console.error('[SMTP] Error processing email:', e)
-            callback(e as Error)
+            console.error('[SMTP] Error processing email in background:', e)
+            // Don't callback error since we already accepted the email
           }
+        })
+        
+        stream.on('error', (err) => {
+          console.error('[SMTP] Stream error:', err)
+          callback(err)
         })
       },
       
