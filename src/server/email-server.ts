@@ -179,8 +179,50 @@ export class EmailServer extends EventEmitter {
 
   // Process received email (like mailserver.js)
   private async processReceivedEmail(mail: ParsedMail, session: any): Promise<EmailReceivedEvent> {
-    const env = session.envelope
-    const to = (env && env.rcptTo && env.rcptTo[0] && env.rcptTo[0].address) || ''
+    // Debug: log full session structure to understand envelope format
+    console.log('[SMTP Debug] Full session keys:', Object.keys(session))
+    console.log('[SMTP Debug] Session envelope:', JSON.stringify(session.envelope, null, 2))
+    
+    // The smtp-server library stores envelope info in session.envelope
+    // Format: { mailFrom: { address: 'x@y.com' }, rcptTo: [{ address: 'a@b.com' }] }
+    const env = session.envelope || {}
+    
+    // Try multiple sources for the 'to' address
+    let to = ''
+    
+    // 1. Try session envelope rcptTo (RCPT TO from SMTP) - array format
+    if (Array.isArray(env.rcptTo) && env.rcptTo.length > 0) {
+      to = env.rcptTo[0]?.address || ''
+      console.log('[SMTP Debug] Got TO from env.rcptTo[0].address:', to)
+    }
+    // 2. Try envelope 'to' as array of strings
+    else if (Array.isArray(env.to) && env.to.length > 0) {
+      to = env.to[0] || ''
+      console.log('[SMTP Debug] Got TO from env.to[0]:', to)
+    }
+    // 3. Fallback to parsed mail headers
+    else {
+      const mailTo = (mail as any).to
+      console.log('[SMTP Debug] Trying mail.to:', JSON.stringify(mailTo))
+      if (mailTo) {
+        if (Array.isArray(mailTo)) {
+          to = mailTo[0]?.value?.[0]?.address || mailTo[0]?.text || ''
+        } else if (typeof mailTo === 'object' && mailTo.value) {
+          to = mailTo.value[0]?.address || mailTo.text || ''
+        } else if (typeof mailTo === 'string') {
+          to = mailTo
+        }
+      }
+      console.log('[SMTP Debug] Got TO from mail headers:', to)
+    }
+    
+    console.log('[SMTP Debug] Final resolved TO address:', to)
+    
+    if (!to) {
+      console.error('[SMTP Debug] ERROR: Could not resolve TO address!')
+      console.error('[SMTP Debug] env:', JSON.stringify(env))
+    }
+    
     const from = mail.from ? mail.from.text : ''
     const subject = mail.subject || '(no subject)'
     const messageId = mail.messageId || ''
