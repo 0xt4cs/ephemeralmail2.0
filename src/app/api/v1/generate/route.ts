@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (activeEmailCount >= 10) {
-      return errorJson(429, 'Email limit reached (10 emails per session)')
+    if (activeEmailCount >= 20) {
+      return errorJson(429, 'Email limit reached (20 emails per session)')
     }
 
     // Initialize Socket.IO manager

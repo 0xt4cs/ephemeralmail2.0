@@ -45,15 +45,9 @@ export async function DELETE(request: NextRequest) {
     
     return okJson({
       success: true,
-      data: { 
-        message: 'Public email soft deleted successfully. It will be permanently deleted after 14 days.',
-        emailAddress,
-        deletedAt: new Date().toISOString()
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        credits: 'EphemeralMail by @0xt4cs - https://github.com/0xt4cs'
-      }
+      message: 'Email soft deleted successfully. You can recover it anytime using the recover endpoint.',
+      emailAddress,
+      deletedAt: new Date().toISOString()
     })
   } catch (error) {
     console.error('Error soft deleting public email:', error)

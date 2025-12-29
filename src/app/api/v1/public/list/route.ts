@@ -51,11 +51,7 @@ export async function GET(request: NextRequest) {
 
     return okJson({
       items: page,
-      nextCursor,
-      meta: {
-        total: page.length,
-        timestamp: new Date().toISOString()
-      }
+      nextCursor
     }, {
       'Cache-Control': 'public, max-age=10',
     })

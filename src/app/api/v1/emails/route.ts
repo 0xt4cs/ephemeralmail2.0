@@ -134,13 +134,7 @@ export async function GET(request: NextRequest) {
 
     return okJson({ 
       items: page, 
-      nextCursor,
-      meta: {
-        total: page.length,
-        fingerprint: fingerprint,
-        includeDeleted: includeDeleted,
-        timestamp: new Date().toISOString()
-      }
+      nextCursor
     }, {
       'Cache-Control': 'private, max-age=5',
     })

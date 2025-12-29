@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         activeEmails: activeEmails.length,
         deletedEmails: deletedEmails.length,
         totalReceivedEmails,
-        remainingSlots: Math.max(0, 10 - session.emailCount),
+        remainingSlots: Math.max(0, 20 - session.emailCount),
       },
       emails: session.emails.map(e => ({
         id: e.id,
