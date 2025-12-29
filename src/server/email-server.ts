@@ -114,6 +114,13 @@ export class EmailServer extends EventEmitter {
       
       // Handle email data (non-blocking - responds immediately)
       onData: (stream: NodeJS.ReadableStream, session: any, callback: (err?: Error | null) => void) => {
+        // CRITICAL: Capture envelope data BEFORE callback() clears it
+        const capturedEnvelope = {
+          mailFrom: session.envelope?.mailFrom ? { ...session.envelope.mailFrom } : null,
+          rcptTo: session.envelope?.rcptTo ? [...session.envelope.rcptTo] : []
+        }
+        console.log('[SMTP] Captured envelope before processing:', JSON.stringify(capturedEnvelope))
+        
         const chunks: Buffer[] = []
         stream.on('data', (d: Buffer) => chunks.push(d))
         stream.on('end', async () => {
@@ -125,8 +132,9 @@ export class EmailServer extends EventEmitter {
             console.log(`[SMTP] Email accepted (processing in background)`)
             
             // Process in background without blocking SMTP response
+            // Pass the captured envelope instead of relying on session.envelope
             const mail = await simpleParser(buf)
-            const emailEvent = await this.processReceivedEmail(mail, session)
+            const emailEvent = await this.processReceivedEmail(mail, capturedEnvelope)
             this.emit('emailReceived', emailEvent)
             
             console.log(`[SMTP] Email processed: ${emailEvent.from} -> ${emailEvent.to}`)
@@ -178,30 +186,20 @@ export class EmailServer extends EventEmitter {
   }
 
   // Process received email (like mailserver.js)
-  private async processReceivedEmail(mail: ParsedMail, session: any): Promise<EmailReceivedEvent> {
-    // Debug: log full session structure to understand envelope format
-    console.log('[SMTP Debug] Full session keys:', Object.keys(session))
-    console.log('[SMTP Debug] Session envelope:', JSON.stringify(session.envelope, null, 2))
+  // Now receives the pre-captured envelope instead of session
+  private async processReceivedEmail(mail: ParsedMail, capturedEnvelope: { mailFrom: any; rcptTo: any[] }): Promise<EmailReceivedEvent> {
+    console.log('[SMTP Debug] Processing with captured envelope:', JSON.stringify(capturedEnvelope))
     
-    // The smtp-server library stores envelope info in session.envelope
-    // Format: { mailFrom: { address: 'x@y.com' }, rcptTo: [{ address: 'a@b.com' }] }
-    const env = session.envelope || {}
-    
-    // Try multiple sources for the 'to' address
+    // Extract 'to' address from captured envelope
     let to = ''
     
-    // 1. Try session envelope rcptTo (RCPT TO from SMTP) - array format
-    if (Array.isArray(env.rcptTo) && env.rcptTo.length > 0) {
-      to = env.rcptTo[0]?.address || ''
-      console.log('[SMTP Debug] Got TO from env.rcptTo[0].address:', to)
+    // 1. Try captured envelope rcptTo (RCPT TO from SMTP)
+    if (Array.isArray(capturedEnvelope.rcptTo) && capturedEnvelope.rcptTo.length > 0) {
+      to = capturedEnvelope.rcptTo[0]?.address || ''
+      console.log('[SMTP Debug] Got TO from capturedEnvelope.rcptTo[0].address:', to)
     }
-    // 2. Try envelope 'to' as array of strings
-    else if (Array.isArray(env.to) && env.to.length > 0) {
-      to = env.to[0] || ''
-      console.log('[SMTP Debug] Got TO from env.to[0]:', to)
-    }
-    // 3. Fallback to parsed mail headers
-    else {
+    // 2. Fallback to parsed mail headers
+    if (!to) {
       const mailTo = (mail as any).to
       console.log('[SMTP Debug] Trying mail.to:', JSON.stringify(mailTo))
       if (mailTo) {
@@ -220,12 +218,21 @@ export class EmailServer extends EventEmitter {
     
     if (!to) {
       console.error('[SMTP Debug] ERROR: Could not resolve TO address!')
-      console.error('[SMTP Debug] env:', JSON.stringify(env))
+      console.error('[SMTP Debug] capturedEnvelope:', JSON.stringify(capturedEnvelope))
     }
     
-    const from = mail.from ? mail.from.text : ''
+    // Extract 'from' address - try envelope first, then mail headers
+    let from = ''
+    if (capturedEnvelope.mailFrom?.address) {
+      from = capturedEnvelope.mailFrom.address
+      console.log('[SMTP Debug] Got FROM from capturedEnvelope.mailFrom.address:', from)
+    } else if (mail.from) {
+      from = mail.from.text || ''
+      console.log('[SMTP Debug] Got FROM from mail.from.text:', from)
+    }
+    
     const subject = mail.subject || '(no subject)'
-    const messageId = mail.messageId || ''
+    const messageId = mail.messageId || `generated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@ephemeralmail`
     const bodyHtml = mail.html || null
     const bodyText = mail.text || null
     
