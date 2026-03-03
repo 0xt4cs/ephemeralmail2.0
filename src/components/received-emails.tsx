@@ -2,17 +2,19 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Input } from '@/components/ui/input'
-import { 
-  Search, 
+import {
+  Search,
   Paperclip,
   Calendar,
-  User
+  User,
+  MoreVertical,
+  ChevronRight
 } from 'lucide-react'
 import { MessageSkeletonLoader } from '@/components/skeleton-loader'
 import { EmptyState } from '@/components/empty-state'
 import { useRealtimeContext } from '@/contexts/realtime-context'
+import { motion, AnimatePresence } from 'framer-motion'
 
-// Track DOM notifications for cleanup (prevent memory leaks)
 const activeNotifications = new Set<HTMLElement>()
 
 interface ReceivedEmail {
@@ -37,38 +39,30 @@ interface ReceivedEmailsProps {
   onSelectMessage: (message: ReceivedEmail) => void
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMessage, onSelectMessage }: ReceivedEmailsProps) {
   const [emails, setEmails] = useState<ReceivedEmail[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
-  
-  // Prevent race conditions with ref to track ongoing operations
+
   const fetchingRef = useRef(false)
 
   const fetchEmails = useCallback(async () => {
     if (!selectedEmailAddress) return
-    
-    // Prevent concurrent fetches (race condition fix)
-    if (fetchingRef.current) {
-      return
-    }
-    
+
+    if (fetchingRef.current) return
+
     fetchingRef.current = true
     setLoading(true)
     setError(null)
-    
+
     try {
-      // No session restriction - fetch by email address directly
       const response = await fetch(`/api/v1/received?email=${encodeURIComponent(selectedEmailAddress)}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(10000)
       })
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           setEmails([])
@@ -76,7 +70,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
         }
         throw new Error(`HTTP ${response.status}: Failed to fetch emails`)
       }
-      
+
       const data = await response.json()
       if (data.success) {
         setEmails(data.data.items || [])
@@ -110,31 +104,28 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
     }
   }, [selectedEmailAddress, fetchEmails])
 
-  // Handle real-time updates
   useEffect(() => {
     if (lastMessage?.type === 'email_received' && selectedEmailAddress) {
-      // Refresh received emails when new email is received
       fetchEmails()
-      
-      // Show subtle notification
+
       const emailData = lastMessage.data as { fromAddress?: string }
       const notification = document.createElement('div')
-      notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm'
-      notification.textContent = `New email from ${emailData?.fromAddress || 'someone'}`
+      notification.className = 'fixed top-4 right-4 bg-primary/90 backdrop-blur-xl border border-primary/20 text-white px-5 py-3 rounded-full shadow-2xl z-50 text-sm font-medium flex items-center gap-2 transform transition-all duration-300 translate-y-0 opacity-100'
+      notification.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg> <span>New email from <b>${emailData?.fromAddress || 'someone'}</b></span>`
       document.body.appendChild(notification)
-      
-      // Track notification for cleanup (race condition/memory leak fix)
+
       activeNotifications.add(notification)
-      
-      // Remove notification after 3 seconds
+
       const timeoutId = setTimeout(() => {
-        if (document.body.contains(notification)) {
-          document.body.removeChild(notification)
-          activeNotifications.delete(notification)
-        }
+        notification.classList.add('translate-y-4', 'opacity-0')
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification)
+            activeNotifications.delete(notification)
+          }
+        }, 300)
       }, 3000)
-      
-      // Cleanup timeout on unmount
+
       return () => {
         clearTimeout(timeoutId)
         if (document.body.contains(notification)) {
@@ -144,8 +135,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       }
     }
   }, [lastMessage, selectedEmailAddress, fetchEmails])
-  
-  // Cleanup all notifications on unmount
+
   useEffect(() => {
     return () => {
       activeNotifications.forEach(notification => {
@@ -157,7 +147,7 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
     }
   }, [])
 
-  const filteredEmails = emails.filter(email => 
+  const filteredEmails = emails.filter(email =>
     email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
     email.fromAddress.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -167,10 +157,10 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
       const date = new Date(dateString)
       const now = new Date()
       const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
-      
+
       if (diffInHours < 24) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      } else if (diffInHours < 168) { // 7 days
+      } else if (diffInHours < 168) {
         return date.toLocaleDateString([], { weekday: 'short' })
       } else {
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
@@ -180,118 +170,118 @@ export function ReceivedEmails({ fingerprint, selectedEmailAddress, selectedMess
     }
   }
 
-  const truncateText = (text: string, maxLength: number = 50) => {
+  const truncateText = (text: string, maxLength: number = 80) => {
     if (text.length <= maxLength) return text
     return text.substring(0, maxLength) + '...'
   }
 
   if (!selectedEmailAddress) {
-    return (
-      <EmptyState type="select-email" />
-    )
+    return <EmptyState type="select-email" />
   }
 
   return (
-    <div className="h-full flex flex-col bg-card">
-      {/* Search */}
-      <div className="p-4 border-b border-border">
+    <div className="h-full flex flex-col bg-background/50 backdrop-blur-sm border-r border-border/50">
+      {/* Header & Search */}
+      <div className="p-5 border-b border-border/40 shrink-0 bg-background/80 backdrop-blur-xl z-10">
+        <h2 className="text-sm font-semibold tracking-wide text-foreground/80 uppercase mb-4 flex items-center justify-between">
+          <span>Inbox</span>
+          {emails.length > 0 && (
+            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px]">{emails.length}</span>
+          )}
+        </h2>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground/70" />
           <Input
-            placeholder="Search messages..."
+            placeholder="Search emails..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 text-sm"
+            className="pl-10 text-sm bg-card/50 border-border/60 focus:ring-primary/50 transition-all rounded-lg"
           />
         </div>
 
-        {/* Manual Refresh button removed - real-time Socket.IO updates handle this automatically */}
-
-        {/* Error Display */}
         {error && (
-          <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive font-medium">
             {error}
-          </div>
+          </motion.div>
         )}
       </div>
 
       {/* Email List */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto p-3 space-y-2 scroller">
         {loading ? (
           <MessageSkeletonLoader count={4} />
         ) : filteredEmails.length === 0 ? (
           searchTerm ? (
-            <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground p-4">
-              <Search className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm">No messages match your search</p>
-              <p className="text-xs">Try a different search term</p>
-            </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-40 text-center text-muted-foreground p-4">
+              <Search className="h-10 w-10 mb-3 opacity-30 text-primary" />
+              <p className="text-sm font-medium text-foreground">No matches found</p>
+              <p className="text-xs">Try adjusting your search</p>
+            </motion.div>
           ) : (
             <EmptyState type="no-messages" />
           )
         ) : (
-          <div className="p-2 space-y-2">
+          <AnimatePresence initial={false}>
             {filteredEmails.map((email) => (
-              <div
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
                 key={email.id}
-                className={`group p-3 rounded-lg border transition-all cursor-pointer hover:bg-accent/50 ${
-                  selectedMessage?.id === email.id
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50'
-                }`}
+                className={`group relative p-4 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden flex ${selectedMessage?.id === email.id
+                    ? 'border-primary/40 bg-card shadow-[0_4px_20px_rgba(var(--primary),0.05)] ring-1 ring-primary/20'
+                    : 'border-border/40 bg-card/40 hover:bg-card hover:border-border/80'
+                  }`}
                 onClick={() => onSelectMessage(email)}
               >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className={`font-medium text-sm line-clamp-1 mb-1 ${
-                      selectedMessage?.id === email.id ? 'text-primary' : ''
-                    }`}>
-                      {email.subject || '(No Subject)'}
-                    </h3>
-                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                      <User className="h-3 w-3" />
+                {/* Unread dot or active bar conceptually */}
+                {selectedMessage?.id === email.id && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-xl" />
+                )}
+
+                <div className="flex-1 min-w-0 pr-2 space-y-1">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center space-x-2 text-xs font-semibold text-foreground/80 truncate pr-2">
                       <span className="truncate">{email.fromAddress}</span>
                     </div>
+                    <div className="text-[11px] text-muted-foreground font-medium shrink-0">
+                      {formatDate(email.receivedAt)}
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs text-muted-foreground shrink-0">
-                    <Calendar className="h-3 w-3" />
-                    <span>{formatDate(email.receivedAt)}</span>
+
+                  <h3 className={`font-semibold text-sm line-clamp-1 pr-4 ${selectedMessage?.id === email.id ? 'text-primary' : 'text-foreground'}`}>
+                    {email.subject || '(No Subject)'}
+                  </h3>
+
+                  <div className="text-[13px] text-muted-foreground line-clamp-2 leading-relaxed">
+                    {email.bodyText ?
+                      truncateText(email.bodyText, 100) :
+                      email.bodyHtml ?
+                        truncateText(email.bodyHtml.replace(/<[^>]*>/g, ''), 100) :
+                        'No content available'
+                    }
                   </div>
+
+                  {email.attachments && email.attachments.length > 0 && (
+                    <div className="flex items-center space-x-1 mt-3 bg-muted/30 w-fit px-2 py-1 rounded-md border border-border/50">
+                      <Paperclip className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                        {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Preview */}
-                <div className="text-xs text-muted-foreground line-clamp-2">
-                  {email.bodyText ? 
-                    truncateText(email.bodyText, 100) : 
-                    email.bodyHtml ? 
-                      truncateText(email.bodyHtml.replace(/<[^>]*>/g, ''), 100) : 
-                      'No content'
-                  }
+                <div className="shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
                 </div>
-
-                {/* Attachments */}
-                {email.attachments && email.attachments.length > 0 && (
-                  <div className="flex items-center space-x-1 mt-2">
-                    <Paperclip className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      {email.attachments.length} attachment{email.attachments.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                )}
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </AnimatePresence>
         )}
-      </div>
-
-      {/* Footer */}
-      <div className="p-3 border-t border-border bg-muted/30">
-        <p className="text-xs text-muted-foreground text-center">
-          {filteredEmails.length} of {emails.length} messages
-          {searchTerm && ' (filtered)'}
-        </p>
       </div>
     </div>
   )
-} 
+}

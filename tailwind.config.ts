@@ -50,6 +50,25 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        shimmer: {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(100%)" }
+        },
+        "pulse-slow": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.8" }
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-5px)" }
+        }
+      },
+      animation: {
+        shimmer: "shimmer 2s infinite ease-in-out",
+        "pulse-slow": "pulse-slow 3s infinite ease-in-out",
+        float: "float 4s infinite ease-in-out"
+      },
       typography: {
         DEFAULT: {
           css: {
@@ -103,4 +122,4 @@ const config: Config = {
   plugins: [typography],
 };
 
-export default config; 
+export default config;
